@@ -16,6 +16,7 @@ class Solver(object):
         self.solved_spaces = dict()
         self.information = set()
         self.informations_for_space = collections.defaultdict(set)
+        self.clusters_checked = set()
 
         self.spaces_with_new_information = set()
 
@@ -34,75 +35,186 @@ class Solver(object):
         for space in information.spaces:
             self.informations_for_space[space].remove(information)
 
-    def solve(self):
-        while self.spaces_with_new_information:
-            space = self.spaces_with_new_information.pop()
+    def copy(self):
+        result = Solver(self.spaces)
+        result.solved_spaces = self.solved_spaces.copy()
+        result.information = self.information.copy()
+        for key, value in self.informations_for_space.iteritems():
+            result.informations_for_space[key] = value.copy()
+        result.spaces_with_new_information = self.spaces_with_new_information.copy()
+        result.clusters_checked = self.clusters_checked.copy()
+        return result
 
-            if space in self.solved_spaces:
-                value = self.solved_spaces[space]
-                for information in list(self.informations_for_space[space]):
-                    new_information = Information(
-                        information.spaces.difference((space,)),
-                        information.count - value)
-                    self.remove_information(information)
-                    if new_information.spaces:
-                        self.add_information(new_information)
+    @staticmethod
+    def check_state(base_solver, space, value, states_to_validate):
+        solver = base_solver.copy()
 
+        solver.solved_spaces[space] = value
+        solver.spaces_with_new_information.add(space)
+
+        try:
+            solver.solve(np=False)
+        except UnsolveableException:
+            return False
+
+        if len(solver.solved_spaces) != len(solver.spaces):
+            for space in solver.spaces:
+                if space not in solver.solved_spaces:
+                    break
+            else:
+                raise exception("This shouldn't happen")
+
+            if (space, 1) in states_to_validate:
+                first_value_to_check = 1
+            else:
+                first_value_to_check = 0
+
+            res = Solver.check_state(solver, space, first_value_to_check, states_to_validate)
+
+            if not res:
+                res = Solver.check_state(solver, space, first_value_to_check ^ 1, states_to_validate)
+
+            return res
+        else:
+            return solver.solved_spaces
+
+    def solve_cluster(self, cluster):
+        if len(cluster) == 1:
+            return False
+
+        spaces = set()
+        for information in cluster:
+            spaces.update(information.spaces)
+
+        states_to_validate = set()
+        states_to_validate.update((x, 0) for x in spaces)
+        states_to_validate.update((x, 1) for x in spaces)
+
+        base_solver = Solver(spaces)
+        for information in cluster:
+            base_solver.add_information(information)
+
+        while states_to_validate:
+            space, value = states_to_validate.pop()
+
+            res = Solver.check_state(base_solver, space, value, states_to_validate)
+
+            if res:
+                states_validated = set(res.iteritems())
+                states_to_validate.difference_update(states_validated)
+            else:
+                self.solved_spaces[space] = value ^ 1
+                self.spaces_with_new_information.add(space)
+                return True
+
+        return False
+
+    def solve_np(self):
+        informations_to_check = set(self.information)
+        new_clusters_checked = set()
+
+        while informations_to_check:
+            information = informations_to_check.pop()
+            cluster = set((information,))
+            unchecked_spaces_in_cluster = set(information.spaces)
+
+            while unchecked_spaces_in_cluster:
+                space = unchecked_spaces_in_cluster.pop()
+                for information in self.informations_for_space[space]:
+                    if information in informations_to_check:
+                        informations_to_check.remove(information)
+                        cluster.add(information)
+                        unchecked_spaces_in_cluster.update(information.spaces)
+
+            frozen_cluster = frozenset(cluster)
+
+            new_clusters_checked.add(frozen_cluster)
+
+            if frozen_cluster in self.clusters_checked:
                 continue
 
-            for information in self.informations_for_space[space]:
-                if information.count == 0 or information.count == len(information.spaces):
-                    new_value = 0 if information.count == 0 else 1
-                    self.spaces_with_new_information.update(information.spaces)
-                    for space in information.spaces:
-                        if space in self.solved_spaces:
-                            if self.solved_spaces[space] != new_value:
-                                raise UnsolveableException()
-                        else:
-                            self.solved_spaces[space] = new_value
-                    self.remove_information(information)
-                    break
+            self.clusters_checked.add(frozen_cluster)
 
-                breaking = True
+            if self.solve_cluster(cluster):
+                return True
+        else:
+            self.clusters_checked = new_clusters_checked
+            return False
 
-                for other_information in self.informations_for_space[space]:
-                    if other_information is information:
-                        continue
+    def solve(self, np=True):
+        while True:
+            if self.spaces_with_new_information:
+                space = self.spaces_with_new_information.pop()
 
-                    if information.spaces.issubset(other_information.spaces):
+                if space in self.solved_spaces:
+                    value = self.solved_spaces[space]
+                    for information in list(self.informations_for_space[space]):
                         new_information = Information(
-                            other_information.spaces.difference(information.spaces),
-                            other_information.count - information.count)
-                        self.remove_information(other_information)
-                        self.add_information(new_information)
-                        self.spaces_with_new_information.add(space)
-                        break
-
-                    if other_information.spaces.issubset(information.spaces):
-                        new_information = Information(
-                            information.spaces.difference(other_information.spaces),
-                            information.count - other_information.count)
+                            information.spaces.difference((space,)),
+                            information.count - value)
                         self.remove_information(information)
-                        self.add_information(new_information)
-                        self.spaces_with_new_information.add(space)
+                        if new_information.spaces:
+                            self.add_information(new_information)
+                        elif new_information.count != 0:
+                            raise UnsolveableException()
+
+                    continue
+
+                for information in self.informations_for_space[space]:
+                    if information.count == 0 or information.count == len(information.spaces):
+                        new_value = 0 if information.count == 0 else 1
+                        self.spaces_with_new_information.update(information.spaces)
+                        for space in information.spaces:
+                            if space in self.solved_spaces:
+                                if self.solved_spaces[space] != new_value:
+                                    raise UnsolveableException()
+                            else:
+                                self.solved_spaces[space] = new_value
+                        self.remove_information(information)
                         break
 
-                    if other_information.count - len(other_information.spaces.difference(information.spaces)) == information.count:
-                        new_spaces = other_information.spaces.difference(information.spaces)
-                        new_information = Information(
-                            new_spaces,
-                            len(new_spaces))
-                        self.add_information(new_information)
-                        new_information = Information(
-                            other_information.spaces.difference(new_spaces),
-                            other_information.count - len(new_spaces))
-                        self.add_information(new_information)
-                        self.remove_information(other_information)
-                        self.spaces_with_new_information.add(space)
-                        break
+                    breaking = True
 
-                if breaking:
-                    break
+                    for other_information in self.informations_for_space[space]:
+                        if other_information is information:
+                            continue
+
+                        if information.spaces.issubset(other_information.spaces):
+                            new_information = Information(
+                                other_information.spaces.difference(information.spaces),
+                                other_information.count - information.count)
+                            self.remove_information(other_information)
+                            self.add_information(new_information)
+                            self.spaces_with_new_information.add(space)
+                            break
+
+                        if other_information.spaces.issubset(information.spaces):
+                            new_information = Information(
+                                information.spaces.difference(other_information.spaces),
+                                information.count - other_information.count)
+                            self.remove_information(information)
+                            self.add_information(new_information)
+                            self.spaces_with_new_information.add(space)
+                            break
+
+                        if other_information.count - len(other_information.spaces.difference(information.spaces)) == information.count:
+                            new_spaces = other_information.spaces.difference(information.spaces)
+                            new_information = Information(
+                                new_spaces,
+                                len(new_spaces))
+                            self.add_information(new_information)
+                            new_information = Information(
+                                other_information.spaces.difference(new_spaces),
+                                other_information.count - len(new_spaces))
+                            self.add_information(new_information)
+                            self.remove_information(other_information)
+                            self.spaces_with_new_information.add(space)
+                            break
+
+                    if breaking:
+                        break
+            elif not np or not self.solve_np():
+                break
 
 def picma_main(width, height):
     spaces = set((x,y) for x in range(width) for y in range(height))

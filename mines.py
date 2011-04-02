@@ -381,7 +381,11 @@ def picma_main(width, height):
                 info_spaces = frozenset((xs,ys) for xs in range(x-1, x+2) for ys in range(y-1, y+2)).intersection(spaces)
                 solver.add_information(Information(info_spaces, info_count))
 
-    solver.solve()
+    try:
+        solver.solve()
+    except UnsolveableException:
+        print "This configuration has no solutions."
+        return
 
     for y in range(height):
         for x in range(width):
@@ -412,7 +416,11 @@ def mines_main(width, height, total):
 
     solver.add_information(Information(frozenset(spaces), total))
 
-    solver.solve()
+    try:
+        solver.solve()
+    except UnsolveableException:
+        print "This configuration has no solutions."
+        return
 
     sys.stdout.write('\n')
 

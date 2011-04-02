@@ -197,11 +197,15 @@ class Solver(object):
             return False
 
         if len(solver.solved_spaces) != len(solver.spaces):
+            # Find a space in the most informations
+            max_space = None
+            max_information = 0
             for space in solver.spaces:
-                if space not in solver.solved_spaces:
-                    break
-            else:
-                raise exception("This shouldn't happen")
+                if space not in solver.solved_spaces and len(base_solver.informations_for_space[space]) > max_information:
+                    max_space = space
+                    max_information = len(base_solver.informations_for_space[space])
+
+            space = max_space
 
             if (space, 1) in states_to_validate:
                 first_value_to_check = 1

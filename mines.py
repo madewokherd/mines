@@ -11,9 +11,7 @@ class UnsolveableException(exception):
 Information = collections.namedtuple('Information', ('spaces', 'count'))
 
 def choose(n, k):
-    """
-    A fast way to calculate binomial coefficients by Andrew Dalke.
-    """
+    # by Andrew Dalke.
     if 0 <= k <= n:
         ntok = 1
         ktok = 1
@@ -134,19 +132,23 @@ class Solver(object):
         clusters = self.get_clusters()
         new_cluster_probabilities = {}
         result = {}
+        denominator = 1
 
         for cluster in clusters:
             if cluster in self.cluster_probabilities:
                 cluster_probabilities = self.cluster_probabilities[cluster]
             elif len(cluster) == 1:
-                cluster_probabilities = {}
+                cluster_possibilities = {}
                 for information in cluster:
                     break
 
-                probability = float(information.count) / len(information.spaces)
+                total = choose(len(information.spaces), information.count)
+                p = total * information.count / len(information.spaces)
 
                 for space in information.spaces:
-                    cluster_probabilities[space] = probability
+                    cluster_possibilities[space] = p
+
+                cluster_probabilities = cluster_possibilities, total
             else:
                 spaces = set()
                 for information in cluster:
@@ -165,16 +167,22 @@ class Solver(object):
                 total += Solver.get_solutions(solver, space, 0, possibilities)
                 total += Solver.get_solutions(solver, space, 1, possibilities)
 
-                total = float(total)
+                cluster_probabilities = possibilities, total
 
-                cluster_probabilities = {}
-                for space, value in possibilities.iteritems():
-                    cluster_probabilities[space] = value / total
-            result.update(cluster_probabilities)
             new_cluster_probabilities[cluster] = cluster_probabilities
 
+            possibilities, total = cluster_probabilities
+
+            for space in result:
+                result[space] *= total
+
+            for space in possibilities:
+                result[space] = possibilities[space] * denominator
+
+            denominator *= total
+
         self.cluster_probabilities = new_cluster_probabilities
-        return result
+        return result, denominator
 
     @staticmethod
     def check_state(base_solver, space, value, states_to_validate):
@@ -389,12 +397,18 @@ def mines_main(width, height, total):
     for i in solver.information:
         print i
 
-    probabilities = [(probability, space) for (space, probability) in solver.get_probabilities().iteritems()]
+    probabilities, total = solver.get_probabilities()
+
+    probabilities = [(probability, space) for (space, probability) in probabilities.iteritems()]
 
     probabilities.sort()
 
+    print 'total possible arrangements:', total
+
+    total = float(total)
+
     for probability, space in probabilities:
-        print space, probability
+        print space, probability / total
 
 if __name__ == '__main__':
     if sys.argv[1] == 'picma':

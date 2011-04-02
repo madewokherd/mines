@@ -17,6 +17,7 @@ class Solver(object):
         self.information = set()
         self.informations_for_space = collections.defaultdict(set)
         self.clusters_checked = set()
+        self.cluster_probabilities = dict()
 
         self.spaces_with_new_information = set()
 
@@ -47,6 +48,100 @@ class Solver(object):
             result.informations_for_space[key] = value.copy()
         result.spaces_with_new_information = self.spaces_with_new_information.copy()
         result.clusters_checked = self.clusters_checked.copy()
+        result.cluster_probabilities = self.cluster_probabilities.copy()
+        return result
+
+    def get_clusters(self):
+        informations_unassigned = set(self.information)
+        result = set()
+
+        while informations_unassigned:
+            information = informations_unassigned.pop()
+            cluster = set((information,))
+            unchecked_spaces_in_cluster = set(information.spaces)
+
+            while unchecked_spaces_in_cluster:
+                space = unchecked_spaces_in_cluster.pop()
+                for information in self.informations_for_space[space]:
+                    if information in informations_unassigned:
+                        informations_unassigned.remove(information)
+                        cluster.add(information)
+                        unchecked_spaces_in_cluster.update(information.spaces)
+
+            result.add(frozenset(cluster))
+
+        return result
+
+    @staticmethod
+    def get_solutions(base_solver, space, value, result):
+        solver = base_solver.copy()
+
+        solver.solved_spaces[space] = value
+        solver.spaces_with_new_information.add(space)
+
+        try:
+            solver.solve(np=False)
+        except UnsolveableException:
+            return 0
+
+        if len(solver.solved_spaces) != len(solver.spaces):
+            for space in solver.spaces:
+                if space not in solver.solved_spaces:
+                    break
+            else:
+                raise exception("This shouldn't happen")
+
+            return Solver.get_solutions(solver, space, 0, result) + Solver.get_solutions(solver, space, 1, result)
+        else:
+            for space, value in solver.solved_spaces.iteritems():
+                result[space] += value
+            return 1
+
+    def get_probabilities(self):
+        self.solve()
+        clusters = self.get_clusters()
+        new_cluster_probabilities = {}
+        result = {}
+
+        for cluster in clusters:
+            if cluster in self.cluster_probabilities:
+                cluster_probabilities = self.cluster_probabilities[cluster]
+            elif len(cluster) == 1:
+                cluster_probabilities = {}
+                for information in cluster:
+                    break
+
+                probability = float(information.count) / len(information.spaces)
+
+                for space in information.spaces:
+                    cluster_probabilities[space] = probability
+            else:
+                spaces = set()
+                for information in cluster:
+                    spaces.update(information.spaces)
+
+                solver = Solver(spaces)
+
+                for information in cluster:
+                    solver.add_information(information)
+
+                possibilities = {}
+                total = 0
+                for space in spaces:
+                    possibilities[space] = 0
+
+                total += Solver.get_solutions(solver, space, 0, possibilities)
+                total += Solver.get_solutions(solver, space, 1, possibilities)
+
+                total = float(total)
+
+                cluster_probabilities = {}
+                for space, value in possibilities.iteritems():
+                    cluster_probabilities[space] = value / total
+            result.update(cluster_probabilities)
+            new_cluster_probabilities[cluster] = cluster_probabilities
+
+        self.cluster_probabilities = new_cluster_probabilities
         return result
 
     @staticmethod
@@ -114,35 +209,18 @@ class Solver(object):
         return False
 
     def solve_np(self):
-        informations_to_check = set(self.information)
-        new_clusters_checked = set()
+        clusters = self.get_clusters()
 
-        while informations_to_check:
-            information = informations_to_check.pop()
-            cluster = set((information,))
-            unchecked_spaces_in_cluster = set(information.spaces)
-
-            while unchecked_spaces_in_cluster:
-                space = unchecked_spaces_in_cluster.pop()
-                for information in self.informations_for_space[space]:
-                    if information in informations_to_check:
-                        informations_to_check.remove(information)
-                        cluster.add(information)
-                        unchecked_spaces_in_cluster.update(information.spaces)
-
-            frozen_cluster = frozenset(cluster)
-
-            new_clusters_checked.add(frozen_cluster)
-
-            if frozen_cluster in self.clusters_checked:
+        for cluster in clusters:
+            if cluster in self.clusters_checked:
                 continue
 
-            self.clusters_checked.add(frozen_cluster)
+            self.clusters_checked.add(cluster)
 
             if self.solve_cluster(cluster):
                 return True
         else:
-            self.clusters_checked = new_clusters_checked
+            self.clusters_checked = clusters
             return False
 
     def solve(self, np=True):
@@ -269,6 +347,8 @@ def mines_main(width, height, total):
 
     solver.solve()
 
+    sys.stdout.write('\n')
+
     for y in range(height):
         for x in range(width):
             sys.stdout.write(str(solver.solved_spaces.get((x, y), '-')))
@@ -276,6 +356,13 @@ def mines_main(width, height, total):
 
     for i in solver.information:
         print i
+
+    probabilities = [(probability, space) for (space, probability) in solver.get_probabilities().iteritems()]
+
+    probabilities.sort()
+
+    for probability, space in probabilities:
+        print space, probability
 
 if __name__ == '__main__':
     if sys.argv[1] == 'picma':

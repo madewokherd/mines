@@ -35,6 +35,10 @@ class Solver(object):
         for space in information.spaces:
             self.informations_for_space[space].remove(information)
 
+    def add_known_value(self, space, value):
+        self.solved_spaces[space] = value
+        self.spaces_with_new_information.add(space)
+
     def copy(self):
         result = Solver(self.spaces)
         result.solved_spaces = self.solved_spaces.copy()
@@ -242,6 +246,40 @@ def picma_main(width, height):
     for i in solver.information:
         print i
 
+def mines_main(width, height, total):
+    spaces = set((x,y) for x in range(width) for y in range(height))
+
+    solver = Solver(spaces)
+
+    for y in range(height):
+        for x in range(width):
+            char = sys.stdin.read(1)
+            while char not in '-0123456789m':
+                char = sys.stdin.read(1)
+
+            if char.isdigit():
+                info_count = int(char)
+                info_spaces = frozenset((xs,ys) for xs in range(x-1, x+2) for ys in range(y-1, y+2)).intersection(spaces)
+                solver.add_information(Information(info_spaces, info_count))
+                solver.add_known_value((x, y), 0)
+            elif char == 'm':
+                solver.add_known_value((x, y), 1)
+
+    solver.add_information(Information(frozenset(spaces), total))
+
+    solver.solve()
+
+    for y in range(height):
+        for x in range(width):
+            sys.stdout.write(str(solver.solved_spaces.get((x, y), '-')))
+        sys.stdout.write('\n')
+
+    for i in solver.information:
+        print i
+
 if __name__ == '__main__':
-    picma_main(int(sys.argv[1]), int(sys.argv[2]))
+    if sys.argv[1] == 'picma':
+        picma_main(int(sys.argv[2]), int(sys.argv[3]))
+    elif sys.argv[1] == 'mines':
+        mines_main(int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]))
 

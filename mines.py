@@ -10,6 +10,21 @@ class UnsolveableException(exception):
 
 Information = collections.namedtuple('Information', ('spaces', 'count'))
 
+def choose(n, k):
+    """
+    A fast way to calculate binomial coefficients by Andrew Dalke.
+    """
+    if 0 <= k <= n:
+        ntok = 1
+        ktok = 1
+        for t in xrange(1, min(k, n - k) + 1):
+            ntok *= n
+            ktok *= t
+            n -= 1
+        return ntok // ktok
+    else:
+        return 0
+
 class Solver(object):
     def __init__(self, spaces):
         self.spaces = frozenset(spaces)
@@ -85,13 +100,30 @@ class Solver(object):
             return 0
 
         if len(solver.solved_spaces) != len(solver.spaces):
-            for space in solver.spaces:
-                if space not in solver.solved_spaces:
+            if len(solver.information) == 1:
+                for information in solver.information:
                     break
+                combinations = choose(len(information.spaces), information.count)
+                p = combinations * information.count / len(information.spaces)
+                for space in information.spaces:
+                    result[space] += p
+                for space, value in solver.solved_spaces.iteritems():
+                    if value:
+                        result[space] += combinations
+                return combinations
             else:
-                raise exception("This shouldn't happen")
+                # Find a space in the smallest information, so we can quickly reduce them to one
+                min_information = None
+                for information in solver.information:
+                    if min_information is None or len(information.spaces) < len(min_information.spaces):
+                        min_information = information
+                for space in min_information.spaces:
+                    if space not in solver.solved_spaces:
+                        break
+                else:
+                    raise exception("This shouldn't happen")
 
-            return Solver.get_solutions(solver, space, 0, result) + Solver.get_solutions(solver, space, 1, result)
+                return Solver.get_solutions(solver, space, 0, result) + Solver.get_solutions(solver, space, 1, result)
         else:
             for space, value in solver.solved_spaces.iteritems():
                 result[space] += value

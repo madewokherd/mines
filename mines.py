@@ -86,46 +86,79 @@ class Solver(object):
         return result
 
     @staticmethod
-    def get_solutions(base_solver, space, value, result):
-        solver = base_solver.copy()
+    def get_cluster_probabilities(cluster):
+        if len(cluster) == 1:
+            cluster_possibilities = {}
+            for information in cluster:
+                break
 
-        solver.solved_spaces[space] = value
-        solver.spaces_with_new_information.add(space)
+            total = choose(len(information.spaces), information.count)
+            p = total * information.count / len(information.spaces)
 
+            for space in information.spaces:
+                cluster_possibilities[space] = p
+
+            return cluster_possibilities, total
+
+        spaces = set()
+        for information in cluster:
+            spaces.update(information.spaces)
+
+        base_solver = Solver(spaces)
+
+        for information in cluster:
+            base_solver.add_information(information)
+
+        # Find a space in the most informations
+        max_space = None
+        max_information = 0
+        for space in spaces:
+            if len(base_solver.informations_for_space[space]) > max_information:
+                max_space = space
+                max_information = len(base_solver.informations_for_space[space])
+
+        space_to_test = max_space
+
+        clear_solver = base_solver.copy()
+        clear_solver.add_known_value(space_to_test, 0)
         try:
-            solver.solve(np=False)
+            clear_solver.solve(np=False)
         except UnsolveableException:
-            return 0
-
-        if len(solver.solved_spaces) != len(solver.spaces):
-            if len(solver.information) == 1:
-                for information in solver.information:
-                    break
-                combinations = choose(len(information.spaces), information.count)
-                p = combinations * information.count / len(information.spaces)
-                for space in information.spaces:
-                    result[space] += p
-                for space, value in solver.solved_spaces.iteritems():
-                    if value:
-                        result[space] += combinations
-                return combinations
-            else:
-                # Find a space in the smallest information, so we can quickly reduce them to one
-                min_information = None
-                for information in solver.information:
-                    if min_information is None or len(information.spaces) < len(min_information.spaces):
-                        min_information = information
-                for space in min_information.spaces:
-                    if space not in solver.solved_spaces:
-                        break
-                else:
-                    raise exception("This shouldn't happen")
-
-                return Solver.get_solutions(solver, space, 0, result) + Solver.get_solutions(solver, space, 1, result)
+            clear_possibilities = None
+            clear_total = 0
         else:
-            for space, value in solver.solved_spaces.iteritems():
-                result[space] += value
-            return 1
+            clear_possibilities, clear_total = clear_solver.get_probabilities()
+
+        mine_solver = base_solver.copy()
+        mine_solver.add_known_value(space_to_test, 1)
+        try:
+            mine_solver.solve(np=False)
+        except UnsolveableException:
+            mine_possibilities = None
+            mine_total = 0
+        else:
+            mine_possibilities, mine_total = mine_solver.get_probabilities()
+
+        total = clear_total + mine_total
+        possibilities = {}
+        for space in spaces:
+            if space == space_to_test:
+                possibilities[space] = mine_total
+            else:
+                p = 0
+                if space in clear_solver.solved_spaces:
+                    if clear_solver.solved_spaces[space]:
+                        p += clear_total
+                elif clear_possibilities:
+                    p += clear_possibilities[space]
+                if space in mine_solver.solved_spaces:
+                    if mine_solver.solved_spaces[space]:
+                        p += mine_total
+                elif mine_possibilities:
+                    p += mine_possibilities[space]
+                possibilities[space] = p
+
+        return possibilities, total
 
     def get_probabilities(self):
         self.solve()
@@ -137,37 +170,8 @@ class Solver(object):
         for cluster in clusters:
             if cluster in self.cluster_probabilities:
                 cluster_probabilities = self.cluster_probabilities[cluster]
-            elif len(cluster) == 1:
-                cluster_possibilities = {}
-                for information in cluster:
-                    break
-
-                total = choose(len(information.spaces), information.count)
-                p = total * information.count / len(information.spaces)
-
-                for space in information.spaces:
-                    cluster_possibilities[space] = p
-
-                cluster_probabilities = cluster_possibilities, total
             else:
-                spaces = set()
-                for information in cluster:
-                    spaces.update(information.spaces)
-
-                solver = Solver(spaces)
-
-                for information in cluster:
-                    solver.add_information(information)
-
-                possibilities = {}
-                total = 0
-                for space in spaces:
-                    possibilities[space] = 0
-
-                total += Solver.get_solutions(solver, space, 0, possibilities)
-                total += Solver.get_solutions(solver, space, 1, possibilities)
-
-                cluster_probabilities = possibilities, total
+                cluster_probabilities = Solver.get_cluster_probabilities(cluster)
 
             new_cluster_probabilities[cluster] = cluster_probabilities
 

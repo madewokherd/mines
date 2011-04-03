@@ -1,0 +1,199 @@
+mines.py is a Minesweeper (and picma squared) solver I wrote for fun. It is
+geometry-agnostic, so if you want it to solve minesweeper on a hexagonal grid,
+the surface of a cube, or a 4-dimensional grid, it's got you covered (although
+you'll have to do a little bit of work to translate the data into the right
+form). The solver can be used to verify that at least one solution to a
+minesweeper configuration exists, while determining the identity of any unknown
+squares that it can.
+
+It can also calculate the probablity of each square containing a mine, and the
+number of possible arrangements, for each square about which it has some
+information. (In a normal game of minesweeper, the total number of mines is
+known, meaning the solver has some information about all the squares. If no
+information is available for some squares, those squares have a 50/50 chance
+of containing a mine, but the solver will not bother to report this, or account
+for them when calculating the total number of arrangements. If this is really
+needed, it's trivial to add.)
+
+The solver can also solve monochrome puzzles from Picma Squared, a related game:
+http://kaetheryan-chronicles.com/picma2
+
+
+Command-line operation
+----------------------
+
+To solve a minesweeper board, run:
+$ python mines.py mines <width> <height> <total mines>
+
+Then enter the current board state.
+
+For example:
+$ python mines.py mines 5 5 10
+02m--
+02m--
+12---
+-----
+-----
+
+A "-" indicates that no information is known about a space.
+An "m" indicates that the space is a mine.
+A digit indicates that the space is not a mine, and it defines the number of
+mines in the space surrounding that space.
+
+The previous example results in the following output:
+
+001--
+001--
+000--
+--0--
+-----
+Information(spaces=frozenset([(3, 2), (3, 1), (3, 3), (3, 0), (3, 4), (4, 4), (1, 4), (4, 3), (0, 4), (4, 2), (4, 1), (2, 4), (4, 0)]), count=7)
+Information(spaces=frozenset([(0, 3), (1, 3)]), count=1)
+total possible arrangements: 3432
+(0, 3) 0.5
+(1, 3) 0.5
+(0, 4) 0.538461538462
+(1, 4) 0.538461538462
+(2, 4) 0.538461538462
+(3, 0) 0.538461538462
+(3, 1) 0.538461538462
+(3, 2) 0.538461538462
+(3, 3) 0.538461538462
+(3, 4) 0.538461538462
+(4, 0) 0.538461538462
+(4, 1) 0.538461538462
+(4, 2) 0.538461538462
+(4, 3) 0.538461538462
+(4, 4) 0.538461538462
+
+The first part of the output is a map showing which squares have a known value
+and the value of each known square. The squares marked with a 0 are mines, and
+the squares marked with a 1 are not mines. It cannot be determined whether the
+squares marked with a - are mines with the information given.
+
+The second part of the output contains the information that is known about those
+squares whose identity cannot be determined, in a simplified form. The first
+Information() line shows that there are 7 mines among the squares in the bottom
+row and rightmost two columns. The other line shows that there are is 1 mine in
+the two remaining unknown squares. I'm aware that this isn't very readable, and
+I included it mostly for debugging purposes.
+
+This is followed by the number of total arrangements of mines that satisfy the
+given constraints and the probability of each unknown square being a mine,
+sorted from least to greatest.
+
+If a given configuration is unsolveable, the output is much simpler:
+
+$ python mines.py mines 5 5 10
+02m--
+02m--
+11---
+-----
+-----
+This configuration has no solutions.
+
+The program can similarly be used to solve picma squared puzzles, with the
+following command line:
+$ python mines.py picma <width> <height>
+
+Because picma squared does not include a way to mark mines, the m character
+cannot be used there.
+
+
+Programming interface
+---------------------
+
+To use the solver in python, a program should create a Solver object, add all of
+the currently known information, call the solve method, and optionally call the
+get_probabilities method.
+
+The Solver constructor takes a single argument that defines the set of valid
+space identifiers. This will normally be a tuple coordinate pair (x,y), but
+it could be any immutable, hashable object with an equality operation consistent
+with its hash function. What makes sense for your program will depend on the
+geometry it is using.
+
+For a simple 2D grid, I use do it this way:
+
+spaces = set((x,y) for x in range(width) for y in range(height))
+solver = Solver(spaces)
+
+You can add information to the solver in two ways. If you know the identity of
+a space, you can use the add_known_value function:
+
+solver.add_known_value((x, y), value)
+
+Again, (x,y) is your space identifier and doesn't necessarily have to be a
+tuple in the form (x,y). Value must be either 0 (for no mine) or 1 (for a mine).
+
+If you know how many mines are in a set of spaces (such as the spaces
+surrounding a particular square), you must create an Information object
+expressing that knowledge, then add that object to the solver.
+
+The Information constructor takes two arguments: a frozen set of space
+identifers and the total number of mines in that set of spaces. The first
+argument MUST be a frozen set, and it MUST be a subset of the space identifiers
+that were originally passed to the Solver constructor.
+
+The following code informs the solver that there are 36 total mines on the
+board:
+
+info = Information(frozenset(spaces), 36)
+solver.add_information(info)
+
+Once you have added all the information you wish to use to a solver, call its
+solve method:
+
+solver.solve()
+
+If there are no possible solutions for the information you've given, the solve
+method raises an UnsolveableExceptions. After this happens, the state of the
+solver is invalid, and it can no longer be used.
+
+As long as there is at least one possible solution, solve will return None.
+
+To extract information from the solver, use the solved_spaces and information
+attributes. solver.solved_spaces is a dictionary mapping space identifiers to
+values (0 for no mine, 1 for a mine). solver.information is a set of Information
+objects that contain the rest of the solver's knowledge. This will usually
+not be the same set of Information objects that was given to the solver
+originally.
+
+After solver.solve has returned, you may use the get_probabilities method to
+calcualte the total number of possible arrangements and the probability of each
+unknown space being a mine. It is used like so:
+
+solver.solve()
+probabilities, total = solver.get_probabilities()
+
+After this code executes, probabilities is a dictionary mapping space
+identifiers to the total number of possible arrangements in which that space
+is a mine. Only space identifiers whose identities are not known and about which
+some information is known will be included in the probabilities dictionary. The
+other value, total, is the total number of possible arrangements. To determine
+the probability of a space being a mine, divide its value in the probabilities
+dictionary by total.
+
+Once solve() has returned, it is perfectly valid to add more information and
+call solve (and, optionally, get_probabilities) again. This is faster than
+creating a new solver.
+
+There is no reliable way to remove information once it has been added because
+that information may have already been used to draw some conclusions. If you
+need to do this, you should make a copy of the solver using the copy method,
+and add the new information to the copy. 
+
+As for the other methods and attributes of Solver, I might change them without
+warning. Use them at your own risk.
+
+
+Support
+-------
+
+For the latest and greatest version go to: https://github.com/madewokherd/mines
+
+Email me (madewokherd) through github if you have questions, comments, patches,
+etc.
+
+And if you do something interesting with this code, please drop me a line.
+

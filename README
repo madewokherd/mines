@@ -67,8 +67,8 @@ total possible arrangements: 3432
 (4, 4) 0.538461538462
 
 The first part of the output is a map showing which squares have a known value
-and the value of each known square. The squares marked with a 0 are mines, and
-the squares marked with a 1 are not mines. It cannot be determined whether the
+and the value of each known square. The squares marked with a 1 are mines, and
+the squares marked with a 0 are not mines. It cannot be determined whether the
 squares marked with a - are mines with the information given.
 
 The second part of the output contains the information that is known about those

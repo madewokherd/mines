@@ -113,7 +113,7 @@ it could be any immutable, hashable object with an equality operation consistent
 with its hash function. What makes sense for your program will depend on the
 geometry it is using.
 
-For a simple 2D grid, I use do it this way:
+For a simple 2D grid, I create it this way:
 
 spaces = set((x,y) for x in range(width) for y in range(height))
 solver = Solver(spaces)
@@ -147,7 +147,7 @@ solve method:
 solver.solve()
 
 If there are no possible solutions for the information you've given, the solve
-method raises an UnsolveableExceptions. After this happens, the state of the
+method raises an UnsolveableException. After this happens, the state of the
 solver is invalid, and it can no longer be used.
 
 As long as there is at least one possible solution, solve will return None.

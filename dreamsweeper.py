@@ -76,7 +76,7 @@ class DreamBoard(object):
                 self._add_value_to_solver(self.solver, x, y, value)
         self.values[x + y * self.width] = value
 
-    def _get_solver(self):
+    def get_solver(self):
         if not self.solver:
             self.solver = mines.Solver(self.spaces)
             self.solver.add_information(mines.Information(self.spaces, self.count))
@@ -87,7 +87,7 @@ class DreamBoard(object):
         return self.solver
 
     def get_probabilities(self, x, y):
-        solver = self._get_solver()
+        solver = self.get_solver()
         
         solvers = [None] * 10
         
@@ -127,6 +127,11 @@ class DreamBoard(object):
 
         return result
 
+    def get_mine_probabilities(self):
+        solver = self.get_solver()
+        solver.solve()
+        return solver.get_probabilities()
+
     def reveal_space(self, x, y):
         self._set_value(x, y, UNKNOWN)
         
@@ -151,7 +156,7 @@ class DreamBoard(object):
     def clear_space(self, x, y):
         try:
             self._set_value(x, y, CLEAR_Q)
-            self._get_solver().solve()
+            self.get_solver().solve()
         except mines.UnsolveableException:
             self.solver = None
             self.set_value(x, y, MINE)
@@ -177,7 +182,7 @@ class DreamBoard(object):
     def set_value(self, x, y, value):
         self._set_value(x, y, UNKNOWN)
         
-        solver = self._get_solver()
+        solver = self.get_solver()
         
         new_solver = solver.copy()
         
@@ -190,31 +195,104 @@ class DreamBoard(object):
         
         self._set_value(x, y, value)
 
-def draw_board(board):
+    def mark_known_spaces(self):
+        solver = self.get_solver()
+        solver.solve()
+        
+        solved_spaces = solver.solved_spaces.copy()
+        
+        for x, y in solved_spaces:
+            if self.get_value(x, y) == UNKNOWN:
+                self._set_value(x, y, MINE if solved_spaces[x, y] else CLEAR_Q)
+
+    def reveal_known_spaces(self):
+        result = False
+        solver = self.get_solver()
+        solver.solve()
+        
+        solved_spaces = solver.solved_spaces.copy()
+        
+        for x, y in solved_spaces:
+            if solved_spaces[x, y] == 0 and self.get_value(x, y) >= 9:
+                self.reveal_space(x, y)
+                result = True
+        
+        return result
+
+    def hint(self):
+        solver = self.get_solver()
+        solver.solve()
+
+        for x, y in solver.solved_spaces:
+            if solver.solved_spaces[x, y] == 0 and self.get_value(x, y) >= 9:
+                self.reveal_space(x, y)
+                return True
+
+        probabilities, _dummy = solver.get_probabilities()
+        
+        total = sum(probabilities.itervalues())
+
+        if total == 0:
+            return False
+        
+        choice = random.randint(1, total)
+
+        cumsum = 0
+        for x, y in probabilities:
+            cumsum += probabilities[x, y]
+            if cumsum >= choice:
+                self.clear_space(x, y)
+                return True
+
+    def maybe_hint(self):
+        solver = self.get_solver()
+        solver.solve()
+
+        for x, y in solver.solved_spaces:
+            if solver.solved_spaces[x, y] == 0 and self.get_value(x, y) >= 9:
+                break
+            elif solver.solved_spaces[x, y] == 1 and self.get_value(x, y) != MINE:
+                break
+        else:
+            return self.hint()
+        return False
+
+def draw_board(board, switches):
     screen = pygame.display.get_surface()
+
+    if '/p' in switches:
+        probabilities, total = board.get_mine_probabilities()
 
     for x in range(board.width):
         for y in range(board.height):
             value = board.get_value(x, y)
+
             screen.blit(mines_image, (x * grid_size, y * grid_size),
                          Rect(0, grid_size * value, grid_size, grid_size))
+
+            if value == UNKNOWN and '/p' in switches:
+                if (x, y) in board.solver.solved_spaces:
+                    g = board.solver.solved_spaces[x, y] * 255
+                else:
+                    g = (probabilities[x, y] * 255 / total)
+                pygame.draw.rect(screen, Color(g, 255-g, min(g, 255-g), 255), Rect(x * grid_size + 2, y * grid_size + 2, grid_size - 4, grid_size - 4))
 
     pygame.display.flip()
 
 key_values = {
-    '0': 0,
-    '1': 1,
-    '2': 2,
-    '3': 3,
-    '4': 4,
-    '5': 5,
-    '6': 6,
-    '7': 7,
-    '8': 8,
-    'm': MINE,
-    ' ': UNKNOWN,
-    'c': CLEAR_Q,
-    '?': UNKNOWN_Q,
+    u'0': 0,
+    u'1': 1,
+    u'2': 2,
+    u'3': 3,
+    u'4': 4,
+    u'5': 5,
+    u'6': 6,
+    u'7': 7,
+    u'8': 8,
+    u'm': MINE,
+    u' ': UNKNOWN,
+    u'c': CLEAR_Q,
+    u'?': UNKNOWN_Q,
     }
 
 def run(width, height, count):
@@ -225,7 +303,18 @@ def run(width, height, count):
     x = y = 0
 
     while True:
-        draw_board(board)
+        if '/r' in switches:
+            while board.reveal_known_spaces():
+                pass
+
+        if '/h' in switches:
+            while board.maybe_hint():
+                pass
+
+        if '/m' in switches:
+            board.mark_known_spaces()
+
+        draw_board(board, switches)
         
         events = pygame.event.get()
         if not events:
@@ -241,13 +330,22 @@ def run(width, height, count):
                 elif event.type == MOUSEBUTTONDOWN and event.button == 3:
                     board.clear_space(x, y)
             elif event.type == KEYDOWN:
-                if chr(event.key) in key_values:
-                    board.set_value(x, y, key_values[chr(event.key)])
+                if event.unicode in key_values:
+                    board.set_value(x, y, key_values[event.unicode])
+                elif event.unicode == u'h':
+                    board.hint()
 
 if __name__ == '__main__':
-    width = int(sys.argv[1])
-    height = int(sys.argv[2])
-    count = int(sys.argv[3])
+    switches = set()
+    argv = []
+    for arg in sys.argv[1:]:
+        if arg.startswith('/'):
+            switches.add(arg)
+        else:
+            argv.append(arg)
+    width = int(argv[0])
+    height = int(argv[1])
+    count = int(argv[2])
 
     run(width, height, count)
 

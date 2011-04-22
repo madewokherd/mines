@@ -42,6 +42,8 @@ def choose(n, k):
     else:
         return 0
 
+global_clusters_checked = set()
+
 global_cluster_probabilities = {}
 
 class Solver(object):
@@ -50,7 +52,6 @@ class Solver(object):
         self.solved_spaces = dict()
         self.information = set()
         self.informations_for_space = collections.defaultdict(set)
-        self.clusters_checked = set()
 
         self.spaces_with_new_information = set()
 
@@ -80,7 +81,6 @@ class Solver(object):
         for key, value in self.informations_for_space.iteritems():
             result.informations_for_space[key] = value.copy()
         result.spaces_with_new_information = self.spaces_with_new_information.copy()
-        result.clusters_checked = self.clusters_checked.copy()
         return result
 
     def get_clusters(self):
@@ -276,18 +276,21 @@ class Solver(object):
         return False
 
     def solve_np(self):
+        global global_clusters_checked
+        if len(global_clusters_checked) > 256:
+            global_clusters_checked = set()
+    
         clusters = self.get_clusters()
 
         for cluster in clusters:
-            if cluster in self.clusters_checked:
+            if cluster in global_clusters_checked:
                 continue
-
-            self.clusters_checked.add(cluster)
 
             if self.solve_cluster(cluster):
                 return True
+            else:
+                global_clusters_checked.add(cluster)
         else:
-            self.clusters_checked = clusters
             return False
 
     def solve(self, np=True):

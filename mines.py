@@ -119,6 +119,10 @@ class Solver(object):
 
             return cluster_possibilities, total
 
+        result = global_cluster_probabilities.get(cluster)
+        if result is not None:
+            return result
+
         spaces = set()
         for information in cluster:
             spaces.update(information.spaces)
@@ -177,6 +181,8 @@ class Solver(object):
                     p += mine_possibilities[space]
                 possibilities[space] = p
 
+        global_cluster_probabilities[cluster] = possibilities, total
+
         return possibilities, total
 
     def get_probabilities(self):
@@ -189,12 +195,7 @@ class Solver(object):
         denominator = 1
 
         for cluster in clusters:
-            cluster_probabilities = global_cluster_probabilities.get(cluster)
-            if cluster_probabilities is None:
-                cluster_probabilities = Solver.get_cluster_probabilities(cluster)
-                global_cluster_probabilities[cluster] = cluster_probabilities
-
-            possibilities, total = cluster_probabilities
+            possibilities, total = Solver.get_cluster_probabilities(cluster)
 
             for space in result:
                 result[space] *= total

@@ -42,6 +42,8 @@ def choose(n, k):
     else:
         return 0
 
+global_cluster_probabilities = {}
+
 class Solver(object):
     def __init__(self, spaces):
         self.spaces = frozenset(spaces)
@@ -49,7 +51,6 @@ class Solver(object):
         self.information = set()
         self.informations_for_space = collections.defaultdict(set)
         self.clusters_checked = set()
-        self.cluster_probabilities = dict()
 
         self.spaces_with_new_information = set()
 
@@ -80,7 +81,6 @@ class Solver(object):
             result.informations_for_space[key] = value.copy()
         result.spaces_with_new_information = self.spaces_with_new_information.copy()
         result.clusters_checked = self.clusters_checked.copy()
-        result.cluster_probabilities = self.cluster_probabilities.copy()
         return result
 
     def get_clusters(self):
@@ -180,19 +180,19 @@ class Solver(object):
         return possibilities, total
 
     def get_probabilities(self):
+        global global_cluster_probabilities
+        if len(global_cluster_probabilities) > 256:
+            global_cluster_probabilities = {}
         self.solve()
         clusters = self.get_clusters()
-        new_cluster_probabilities = {}
         result = {}
         denominator = 1
 
         for cluster in clusters:
-            if cluster in self.cluster_probabilities:
-                cluster_probabilities = self.cluster_probabilities[cluster]
-            else:
+            cluster_probabilities = global_cluster_probabilities.get(cluster)
+            if cluster_probabilities is None:
                 cluster_probabilities = Solver.get_cluster_probabilities(cluster)
-
-            new_cluster_probabilities[cluster] = cluster_probabilities
+                global_cluster_probabilities[cluster] = cluster_probabilities
 
             possibilities, total = cluster_probabilities
 
@@ -204,7 +204,6 @@ class Solver(object):
 
             denominator *= total
 
-        self.cluster_probabilities = new_cluster_probabilities
         return result, denominator
 
     @staticmethod

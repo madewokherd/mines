@@ -219,6 +219,20 @@ class DreamBoard(object):
         
         return result
 
+    def reveal_around_zeroes(self):
+        did_work = False
+
+        for x in range(self.width):
+            for y in range(self.height):
+                if self.get_value(x, y) == 0:
+                    for xi in range(max(x-1, 0), min(x+2, self.width)):
+                        for yi in range(max(y-1, 0), min(y+2, self.height)):
+                            if self.get_value(xi, yi) >= 9:
+                                self.reveal_space(xi, yi)
+                                did_work = True
+        
+        return did_work
+
     def hint(self):
         solver = self.get_solver()
         solver.solve()
@@ -303,13 +317,17 @@ def run(width, height, count):
     x = y = 0
 
     while True:
-        if '/r' in switches:
-            while board.reveal_known_spaces():
-                pass
+        while True:
+            if '/r' in switches and board.reveal_known_spaces():
+                continue
 
-        if '/h' in switches:
-            while board.maybe_hint():
-                pass
+            if '/0' in switches and board.reveal_around_zeroes():
+                continue
+
+            if '/h' in switches and board.maybe_hint():
+                continue
+            
+            break
 
         if '/m' in switches:
             board.mark_known_spaces()

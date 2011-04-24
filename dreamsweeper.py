@@ -195,7 +195,7 @@ class DreamBoard(object):
         
         self._set_value(x, y, value)
 
-    def mark_known_spaces(self):
+    def mark_known_spaces(self, value = None):
         solver = self.get_solver()
         solver.solve()
         
@@ -203,6 +203,8 @@ class DreamBoard(object):
         
         for x, y in solved_spaces:
             if self.get_value(x, y) == UNKNOWN:
+                if value is not None and solved_spaces[x, y] != value:
+                    continue
                 self._set_value(x, y, MINE if solved_spaces[x, y] else CLEAR_Q)
 
     def reveal_known_spaces(self):
@@ -331,6 +333,12 @@ def run(width, height, count):
 
         if '/m' in switches:
             board.mark_known_spaces()
+
+        if '/mm' in switches:
+            board.mark_known_spaces(1)
+
+        if '/mc' in switches:
+            board.mark_known_spaces(0)
 
         draw_board(board, switches)
         

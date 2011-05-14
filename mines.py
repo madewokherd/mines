@@ -503,14 +503,6 @@ class RectMap(MineMap):
                 result.add((xb, yb))
         return result
 
-def set_choice(random, s):
-    n = random.randint(1, len(s))
-
-    for item in s:
-        n -= 1
-        if n == 0:
-            return item
-
 class PicmaPuzzle(object):
     def __init__(self, minemap):
         self.minemap = minemap
@@ -528,12 +520,14 @@ class PicmaPuzzle(object):
 
         spaces_left_to_add = set(self.minemap.spaces)
         spaces_left_to_add.difference_update(self.known_spaces.iterkeys())
+        spaces_left_to_add = list(spaces_left_to_add)
+        random.shuffle(spaces_left_to_add)
 
         while len(self.minemap.spaces) != len(solver.solved_spaces):
-            space = set_choice(random, spaces_left_to_add)
+            if not spaces_left_to_add:
+                raise ValueError("Unsolveable configuration")
+            space = spaces_left_to_add.pop()
             bordering_spaces = frozenset(self.minemap.get_bordering_spaces(space))
-
-            spaces_left_to_add.remove(space)
 
             value = sum(self.minemap[s] for s in bordering_spaces)
 

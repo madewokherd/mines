@@ -563,7 +563,14 @@ def picmagen_main(width, height):
     rectmap.randomize_p(random)
 
     puzzle = PicmaPuzzle(rectmap)
-    puzzle.make_solveable(random)
+    try:
+        puzzle.make_solveable(random)
+    except ValueError:
+        print "unsolveable configuration:"
+        for y in range(height):
+            for x in range(width):
+                sys.stdout.write(str(rectmap[x, y]))
+            sys.stdout.write('\n')
 
     for y in range(height):
         for x in range(width):

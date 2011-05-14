@@ -448,9 +448,133 @@ def mines_main(width, height, total):
     for probability, space in probabilities:
         print space, probability / total
 
+class MineMap(object):
+    def __init__(self, spaces):
+        self.spaces = frozenset(spaces)
+
+    def __getitem__(self, key):
+        raise NotImplementedError()
+
+    def __setitem__(self, key, value):
+        raise NotImplementedError()
+
+    def get_bordering_spaces(self, space):
+        raise NotImplementedError()
+
+    def randomize_p(self, random, p=0.5):
+        for space in self.spaces:
+            self[space] = 1 if random.random() < p else 0
+
+    def randomize_count(self, random, count):
+        mines_remaining = count
+        spaces_remaining = len(self.spaces)
+        for space in self.spaces:
+            value = 1 if random.randint(1, spaces_remaining) < mines_remaining else 0
+            self[space] = value
+            mines_remaining -= value
+            spaces_remaining -= 1
+
+class RectMap(MineMap):
+    def __init__(self, width, height):
+        spaces = set()
+        for x in range(width):
+            for y in range(height):
+                spaces.add((x, y))
+        MineMap.__init__(self, spaces)
+
+        self.width = width
+        self.height = height
+
+        self.values = [0] * width * height
+
+    def __getitem__(self, key):
+        x, y = key
+        return self.values[x + y * self.width]
+
+    def __setitem__(self, key, value):
+        x, y = key
+        self.values[x + y * self.width] = value
+
+    def get_bordering_spaces(self, space):
+        result = set()
+        x, y = space
+        for xb in range(max(x-1, 0), min(x+2, self.width)):
+            for yb in range(max(y-1, 0), min(y+2, self.height)):
+                result.add((xb, yb))
+        return result
+
+def set_choice(random, s):
+    n = random.randint(1, len(s))
+
+    for item in s:
+        n -= 1
+        if n == 0:
+            return item
+
+class PicmaPuzzle(object):
+    def __init__(self, minemap):
+        self.minemap = minemap
+        self.known_spaces = dict()
+
+    def create_solver(self):
+        result = Solver(self.minemap.spaces)
+        for key, value in self.known_spaces.iteritems():
+            result.add_information(Information(frozenset(self.minemap.get_bordering_spaces(key)), value))
+        return result
+
+    def make_solveable(self, random):
+        solver = self.create_solver()
+        solver.solve()
+
+        spaces_left_to_add = set(self.minemap.spaces)
+        spaces_left_to_add.difference_update(self.known_spaces.iterkeys())
+
+        while len(self.minemap.spaces) != len(solver.solved_spaces):
+            space = set_choice(random, spaces_left_to_add)
+            bordering_spaces = frozenset(self.minemap.get_bordering_spaces(space))
+
+            spaces_left_to_add.remove(space)
+
+            value = sum(self.minemap[s] for s in bordering_spaces)
+
+            for other_value in range(len(bordering_spaces)):
+                new_solver = solver.copy()
+
+                try:
+                    new_solver.add_information(Information(bordering_spaces, other_value))
+                    new_solver.solve()
+                    # This space could have some other value, so add it
+                    break
+                except UnsolveableException:
+                    pass
+            else:
+                # We can infer this space's value, so don't add it
+                continue
+
+            self.known_spaces[space] = value
+            solver.add_information(Information(bordering_spaces, value))
+            solver.solve()
+
+def picmagen_main(width, height):
+    import random
+    random = random.SystemRandom()
+
+    rectmap = RectMap(width, height)
+    rectmap.randomize_p(random)
+
+    puzzle = PicmaPuzzle(rectmap)
+    puzzle.make_solveable(random)
+
+    for y in range(height):
+        for x in range(width):
+            sys.stdout.write(str(puzzle.known_spaces.get((x, y), '-')))
+        sys.stdout.write('\n')
+
 if __name__ == '__main__':
     if sys.argv[1] == 'picma':
         picma_main(int(sys.argv[2]), int(sys.argv[3]))
     elif sys.argv[1] == 'mines':
         mines_main(int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]))
+    elif sys.argv[1] == 'picmagen':
+        picmagen_main(int(sys.argv[2]), int(sys.argv[3]))
 

@@ -342,10 +342,9 @@ def run(width, height, count):
 
         draw_board(board, switches)
         
-        events = pygame.event.get()
-        if not events:
-            events = (pygame.event.wait(),)
-        for event in events:
+        events = [pygame.event.wait()]
+        while events:
+            event = events.pop(0)
             if event.type == QUIT:
                 return
             elif event.type in (MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION):
@@ -360,6 +359,8 @@ def run(width, height, count):
                     board.set_value(x, y, key_values[event.unicode])
                 elif event.unicode == u'h':
                     board.hint()
+            if not events:
+                events = pygame.event.get()
 
 if __name__ == '__main__':
     switches = set()

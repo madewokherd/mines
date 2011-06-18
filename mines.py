@@ -659,25 +659,30 @@ class PicmaPuzzle(object):
                 self.known_spaces[space] = value
                 solver = new_solver
 
-def picmagen_main(width, height):
-    import random
-    random = random.SystemRandom()
+    def trim(self):
+        for space, value in self.known_spaces.items():
+            del self.known_spaces[space]
+            solver = self.create_solver()
+            solver.solve()
+            if len(self.minemap.spaces) != len(solver.solved_spaces):
+                self.known_spaces[space] = value
 
-    rectmap = RectMap(width, height)
-    rectmap.randomize_p(random)
 
+def picmagen(rectmap, random):
     puzzle = PicmaPuzzle(rectmap)
     try:
         puzzle.make_solveable(random)
     except ValueError:
         print "unsolveable configuration:"
-        for y in range(height):
-            for x in range(width):
+        for y in range(rectmap.height):
+            for x in range(rectmap.width):
                 sys.stdout.write(str(rectmap[x, y]))
             sys.stdout.write('\n')
+    else:
+        puzzle.trim()
 
-    for y in range(height):
-        for x in range(width):
+    for y in range(rectmap.height):
+        for x in range(rectmap.width):
             sys.stdout.write(str(puzzle.known_spaces.get((x, y), '-')))
         sys.stdout.write('\n')
 
@@ -686,6 +691,31 @@ def picmagen_main(width, height):
     print "solves: ", next(global_clusters_solves)
     print "clears: ", next(global_clusters_clears)
 
+def picmagen_main(width, height):
+    import random
+    random = random.SystemRandom()
+
+    rectmap = RectMap(width, height)
+    rectmap.randomize_p(random)
+
+    picmagen(rectmap, random)
+
+def picmapregen_main(width, height):
+    import random
+    random = random.SystemRandom()
+
+    rectmap = RectMap(width, height)
+
+    for y in range(height):
+        for x in range(width):
+            char = sys.stdin.read(1)
+            while char not in '01':
+                char = sys.stdin.read(1)
+
+            rectmap[x, y] = int(char)
+
+    picmagen(rectmap, random)
+
 if __name__ == '__main__':
     if sys.argv[1] == 'picma':
         picma_main(int(sys.argv[2]), int(sys.argv[3]))
@@ -693,4 +723,6 @@ if __name__ == '__main__':
         mines_main(int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]))
     elif sys.argv[1] == 'picmagen':
         picmagen_main(int(sys.argv[2]), int(sys.argv[3]))
+    elif sys.argv[1] == 'picmapregen':
+        picmapregen_main(int(sys.argv[2]), int(sys.argv[3]))
 

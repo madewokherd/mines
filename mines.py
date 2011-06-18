@@ -22,6 +22,29 @@ import collections
 import itertools
 import sys
 
+if sys.platform == 'cli':
+    import System
+    CPU_COUNT = System.Environment.ProcessorCount
+else:
+    #try:
+    #    import multiprocessing
+    #    CPU_COUNT = multiprocessing.cpu_count()
+    #except ImportError:
+    #    CPU_COUNT = 1
+
+    # IronPython seems to be the only common Python implementation that doesn't
+    # have a GIL and therefore the only implementation that benefits from this.
+    # Therefore, don't bother making any threads on other implementations.
+    CPU_COUNT = 1
+
+try:
+    import thread
+    import threading
+except ImportError:
+    import dummy_threading as threading
+    import dummy_thread as thread
+    CPU_COUNT = 1
+
 class exception(Exception):
     pass
 
@@ -55,6 +78,78 @@ global_cluster_probabilities = {}
 global_probabilities_hits = itertools.count(0)
 global_probabilities_misses = itertools.count(0)
 global_probabilities_clears = itertools.count(0)
+
+# threading utilities that should probably be elsewhere:
+
+class Promise(object):
+    def __init__(self, queue):
+        self.lock = threading.Lock()
+        self.finished = False
+        self.value = None
+        self.queue = queue
+        self.lock.acquire()
+
+    def set(self, value):
+        self.value = value
+        self.finished = True
+        self.lock.release()
+
+    def get(self):
+        if not self.finished:
+            while not self.lock.acquire(False):
+                if not self.queue.run_one(False):
+                    self.lock.acquire()
+                    break
+            self.lock.release()
+        return self.value
+
+class TaskQueue(object):
+    def __init__(self, number_of_threads):
+        self.tasks = []
+        self.task_sem = threading.Semaphore(0)
+        for i in range(number_of_threads):
+            new_thread = threading.Thread(target=TaskQueue.run_forever, args=(self,))
+            new_thread.daemon = True
+            new_thread.start()
+        self.number_of_threads = number_of_threads
+
+    def run_task(self, task):
+        f, args, kwargs, promise = task
+        try:
+            promise.set(f(*args, **kwargs))
+        except BaseException, e:
+            promise.set(e)
+
+    def run_one(self, block=True):
+        if self.task_sem.acquire(block):
+            task = self.tasks.pop(0)
+            self.run_task(task)
+            return True
+        else:
+            return False
+
+    def run_forever(self):
+        while True:
+            self.run_one()
+
+    def add_task(self, f, args=(), kwargs={}, block=True):
+        promise = Promise(self)
+        self.tasks.append((f, args, kwargs, promise))
+        self.task_sem.release()
+        return promise
+
+class DummyTaskQueue(TaskQueue):
+    def add_task(self, f, args=(), kwargs={}, block=True):
+        promise = Promise(self)
+        self.run_task((f, args, kwargs, promise))
+        return promise
+
+if CPU_COUNT == 1:
+    queue = DummyTaskQueue(0)
+else:
+    queue = TaskQueue(CPU_COUNT)
+
+# actual minesweeper code
 
 class Solver(object):
     def __init__(self, spaces):
@@ -259,9 +354,6 @@ class Solver(object):
             return solver.solved_spaces
 
     def solve_cluster(self, cluster):
-        if len(cluster) == 1:
-            return False
-
         spaces = set()
         for information in cluster:
             spaces.update(information.spaces)
@@ -285,8 +377,11 @@ class Solver(object):
             else:
                 self.solved_spaces[space] = value ^ 1
                 self.spaces_with_new_information.add(space)
+                next(global_clusters_solves)
                 return True
 
+        global_clusters_checked.add(cluster)
+        next(global_clusters_misses)
         return False
 
     def solve_np(self):
@@ -297,19 +392,25 @@ class Solver(object):
     
         clusters = self.get_clusters()
 
+        promises = []
+
+        res = False
+
         for cluster in clusters:
+            if len(cluster) == 1:
+                continue
+
             if cluster in global_clusters_checked:
                 next(global_clusters_hits)
                 continue
 
-            if self.solve_cluster(cluster):
-                next(global_clusters_solves)
-                return True
-            else:
-                next(global_clusters_misses)
-                global_clusters_checked.add(cluster)
-        else:
-            return False
+            promise = queue.add_task(Solver.solve_cluster, args=(self, cluster))
+
+        for promise in promises:
+            if promise.get():
+                res = True
+
+        return res
 
     def solve(self, np=True):
         while True:

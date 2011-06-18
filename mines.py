@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 
 import collections
+import itertools
 import sys
 
 class exception(Exception):
@@ -44,7 +45,16 @@ def choose(n, k):
 
 global_clusters_checked = set()
 
+global_clusters_hits = itertools.count(0)
+global_clusters_misses = itertools.count(0)
+global_clusters_solves = itertools.count(0)
+global_clusters_clears = itertools.count(0)
+
 global_cluster_probabilities = {}
+
+global_probabilities_hits = itertools.count(0)
+global_probabilities_misses = itertools.count(0)
+global_probabilities_clears = itertools.count(0)
 
 class Solver(object):
     def __init__(self, spaces):
@@ -121,7 +131,10 @@ class Solver(object):
 
         result = global_cluster_probabilities.get(cluster)
         if result is not None:
+            next(global_probabilities_hits)
             return result
+
+        next(global_probabilities_misses)
 
         spaces = set()
         for information in cluster:
@@ -188,6 +201,7 @@ class Solver(object):
     def get_probabilities(self):
         global global_cluster_probabilities
         if len(global_cluster_probabilities) > 256:
+            next(global_probabilities_clears)
             global_cluster_probabilities = {}
         self.solve()
         clusters = self.get_clusters()
@@ -279,16 +293,20 @@ class Solver(object):
         global global_clusters_checked
         if len(global_clusters_checked) > 256:
             global_clusters_checked = set()
+            next(global_clusters_clears)
     
         clusters = self.get_clusters()
 
         for cluster in clusters:
             if cluster in global_clusters_checked:
+                next(global_clusters_hits)
                 continue
 
             if self.solve_cluster(cluster):
+                next(global_clusters_solves)
                 return True
             else:
+                next(global_clusters_misses)
                 global_clusters_checked.add(cluster)
         else:
             return False
@@ -570,6 +588,11 @@ def picmagen_main(width, height):
         for x in range(width):
             sys.stdout.write(str(puzzle.known_spaces.get((x, y), '-')))
         sys.stdout.write('\n')
+
+    print "hits: ", next(global_clusters_hits)
+    print "misses: ", next(global_clusters_misses)
+    print "solves: ", next(global_clusters_solves)
+    print "clears: ", next(global_clusters_clears)
 
 if __name__ == '__main__':
     if sys.argv[1] == 'picma':

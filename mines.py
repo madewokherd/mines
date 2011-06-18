@@ -549,23 +549,14 @@ class PicmaPuzzle(object):
 
             value = sum(self.minemap[s] for s in bordering_spaces)
 
-            for other_value in range(len(bordering_spaces)):
-                new_solver = solver.copy()
+            new_solver = solver.copy()
+            new_solver.add_information(Information(bordering_spaces, value))
+            new_solver.solve()
 
-                try:
-                    new_solver.add_information(Information(bordering_spaces, other_value))
-                    new_solver.solve()
-                    # This space could have some other value, so add it
-                    break
-                except UnsolveableException:
-                    pass
-            else:
-                # We can infer this space's value, so don't add it
-                continue
-
-            self.known_spaces[space] = value
-            solver.add_information(Information(bordering_spaces, value))
-            solver.solve()
+            if new_solver.solved_spaces != solver.solved_spaces or \
+                new_solver.information != solver.information:
+                self.known_spaces[space] = value
+                solver = new_solver
 
 def picmagen_main(width, height):
     import random

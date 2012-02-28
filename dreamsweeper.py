@@ -179,6 +179,32 @@ class DreamBoard(object):
         
         self._set_value(x, y, value)
 
+    def reveal_clear_space(self, x, y):
+        try:
+            self._set_value(x, y, MINE)
+            self.get_solver().solve()
+        except mines.UnsolveableException:
+            self.solver = None
+            self.set_value(x, y, CLEAR_Q)
+            self.get_solver().solve()
+        
+        probabilities = self.get_probabilities(x, y)
+        
+        total = sum(probabilities) or 1
+
+        choice = random.randint(1, total)
+        
+        cumsum = 0
+        for i, probability in enumerate(probabilities):
+            cumsum += probability
+            if cumsum >= choice:
+                value = revealed_values[i]
+                break
+        else:
+            value = UNKNOWN_Q
+        
+        self._set_value(x, y, value)
+
     def set_value(self, x, y, value):
         self._set_value(x, y, UNKNOWN)
         
@@ -351,7 +377,7 @@ def run(width, height, count):
                 x = event.pos[0] / grid_size
                 y = event.pos[1] / grid_size
                 if event.type == MOUSEBUTTONDOWN and event.button == 1:
-                    board.reveal_space(x, y)
+                    board.reveal_clear_space(x, y)
                 elif event.type == MOUSEBUTTONDOWN and event.button == 3:
                     board.clear_space(x, y)
             elif event.type == KEYDOWN:
@@ -359,6 +385,10 @@ def run(width, height, count):
                     board.set_value(x, y, key_values[event.unicode])
                 elif event.unicode == u'h':
                     board.hint()
+                elif event.unicode == u'r':
+                    board.reveal_space(x, y)
+                elif event.unicode == u's':
+                    board.reveal_known_spaces()
             if not events:
                 events = pygame.event.get()
 

@@ -71,13 +71,11 @@ global_clusters_checked = set()
 global_clusters_hits = itertools.count(0)
 global_clusters_misses = itertools.count(0)
 global_clusters_solves = itertools.count(0)
-global_clusters_clears = itertools.count(0)
 
 global_cluster_probabilities = {}
 
 global_probabilities_hits = itertools.count(0)
 global_probabilities_misses = itertools.count(0)
-global_probabilities_clears = itertools.count(0)
 
 # threading utilities that should probably be elsewhere:
 
@@ -243,9 +241,12 @@ class Solver(object):
         # Find a space in the most informations
         max_space = None
         max_information = 0
+        max_information_size = 0
         for space in spaces:
-            if len(base_solver.informations_for_space[space]) > max_information:
+            information_size = max(len(info.spaces) for info in base_solver.informations_for_space[space])
+            if (information_size, len(base_solver.informations_for_space[space])) > (max_information_size, max_information):
                 max_space = space
+                max_information_size = information_size
                 max_information = len(base_solver.informations_for_space[space])
 
         space_to_test = max_space
@@ -294,10 +295,6 @@ class Solver(object):
         return possibilities, total
 
     def get_probabilities(self):
-        global global_cluster_probabilities
-        if len(global_cluster_probabilities) > 256:
-            next(global_probabilities_clears)
-            global_cluster_probabilities = {}
         self.solve()
         clusters = self.get_clusters()
         result = {}
@@ -332,9 +329,12 @@ class Solver(object):
             # Find a space in the most informations
             max_space = None
             max_information = 0
-            for space in solver.spaces:
-                if space not in solver.solved_spaces and len(base_solver.informations_for_space[space]) > max_information:
+            max_information_size = 0
+            for space in spaces:
+                information_size = max(len(info.spaces) for info in base_solver.informations_for_space[space])
+                if (information_size, len(base_solver.informations_for_space[space])) > (max_information_size, max_information):
                     max_space = space
+                    max_information_size = information_size
                     max_information = len(base_solver.informations_for_space[space])
 
             space = max_space
@@ -385,11 +385,6 @@ class Solver(object):
         return False
 
     def solve_np(self):
-        global global_clusters_checked
-        if len(global_clusters_checked) > 256:
-            global_clusters_checked = set()
-            next(global_clusters_clears)
-    
         clusters = self.get_clusters()
 
         promises = []
@@ -689,7 +684,6 @@ def picmagen(rectmap, random):
     print "hits: ", next(global_clusters_hits)
     print "misses: ", next(global_clusters_misses)
     print "solves: ", next(global_clusters_solves)
-    print "clears: ", next(global_clusters_clears)
 
 def picmagen_main(width, height):
     import random

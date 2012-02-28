@@ -67,42 +67,78 @@ class DreamBoard(object):
                 raise mines.UnsolveableException()
             solver.add_known_value((x, y), 0)
 
+    def _is_removing_information(self, x, y, value):
+        return self.values[x + y * width] not in (UNKNOWN, UNKNOWN_Q, value) and \
+            not (value < 9 and self.values[x + y * width] == CLEAR_Q)
+
     def _set_value(self, x, y, value):
         if self.solver:
-            if self.values[x + y * width] not in (UNKNOWN, UNKNOWN_Q):
+            if self._is_removing_information(x, y, value):
                 # cannot remove information from solver
                 self.solver = None
             else:
                 self._add_value_to_solver(self.solver, x, y, value)
         self.values[x + y * self.width] = value
 
+    def create_solver(self, exclude = None):
+        solver = mines.Solver(self.spaces)
+        solver.add_information(mines.Information(self.spaces, self.count))
+        for x in range(self.width):
+            for y in range(self.height):
+                if (x, y) == exclude:
+                    continue
+                self._add_value_to_solver(solver, x, y, self.values[x + y * self.width])
+        solver.solve()
+        return solver
+
     def get_solver(self):
         if not self.solver:
-            self.solver = mines.Solver(self.spaces)
-            self.solver.add_information(mines.Information(self.spaces, self.count))
-            for x in range(self.width):
-                for y in range(self.height):
-                    self._add_value_to_solver(self.solver, x, y, self.values[x + y * self.width])
-            self.solver.solve()
+            self.solver = self.create_solver()
         return self.solver
 
-    def get_probabilities(self, x, y):
+    def get_solver_where(self, x, y, value):
+        if self._is_removing_information(x, y, value):
+            solver = self.create_solver((x, y))
+        else:
+            solver = self.get_solver().copy()
+        self._add_value_to_solver(solver, x, y, value)
+        solver.solve()
+        return solver
+
+    def try_set_value(self, x, y, value):
+        try:
+            solver = self.get_solver_where(x, y, value)
+        except mines.UnsolveableException:
+            return False
+        self.solver = solver
+        self.values[x + y * self.width] = value
+        return True
+
+    def get_probabilities(self, x, y, discard=False, clear=False):
         solver = self.get_solver()
         
         solvers = [None] * 10
         
         result = [0] * 10
         
+        if clear and (discard or not self._is_removing_information(x, y, CLEAR_Q)):
+            if not self.try_set_value(x, y, CLEAR_Q):
+                return result, solvers
+            self.solver.get_probabilities()
+        
         num_solveable = 0
 
         for i, value in enumerate(revealed_values):
             try:
-                new_solver = solver.copy()
+                if clear and value == MINE:
+                    continue
 
-                self._add_value_to_solver(new_solver, x, y, value)
-                
-                new_solver.solve()
-                
+                if discard:
+                    new_solver = self.get_solver_where(x, y, value)
+                else:
+                    new_solver = self.get_solver().copy()
+                    self._add_value_to_solver(new_solver, x, y, value)
+
                 solvers[i] = new_solver
                 
                 num_solveable += 1
@@ -115,27 +151,27 @@ class DreamBoard(object):
             for i in range(len(revealed_values)):
                 if solvers[i] is not None:
                     result[i] = 1
-            return result
+            return result, solvers
 
         for i in range(len(revealed_values)):
             if solvers[i] is not None:
                 try:
                     _dummy, result[i] = solvers[i].get_probabilities()
                 except mines.UnsolveableException:
-                    # FIXME: This shouldn't happen?
+                    # FIXME: This shouldn't happen
                     pass
 
-        return result
+        return result, solvers
 
     def get_mine_probabilities(self):
         solver = self.get_solver()
         solver.solve()
         return solver.get_probabilities()
 
-    def reveal_space(self, x, y):
-        self._set_value(x, y, UNKNOWN)
-        
-        probabilities = self.get_probabilities(x, y)
+    def reveal_space(self, x, y, discard=False, clear=False):
+        # Reveal x,y, ignoring what's at x,y only if discard is true
+
+        probabilities, solvers = self.get_probabilities(x, y, discard, clear)
         
         total = sum(probabilities) or 1
 
@@ -148,78 +184,26 @@ class DreamBoard(object):
                 value = revealed_values[i]
                 break
         else:
-            # this shouldn't happen
-            value = UNKNOWN_Q
+            # no possibilities
+            return False
         
-        self._set_value(x, y, value)
+        self.values[x + y * self.width] = value
+        self.solver = solvers[i]
+        return True
 
     def clear_space(self, x, y):
-        try:
-            self._set_value(x, y, CLEAR_Q)
-            self.get_solver().solve()
-        except mines.UnsolveableException:
-            self.solver = None
+        # Reveal x,y but make it a non-mine if possible
+        if not self.reveal_space(x, y, discard=True, clear=True):
             self.set_value(x, y, MINE)
             return
-        
-        probabilities = self.get_probabilities(x, y)
-        
-        total = sum(probabilities) or 1
 
-        choice = random.randint(1, total)
-        
-        cumsum = 0
-        for i, probability in enumerate(probabilities):
-            cumsum += probability
-            if cumsum >= choice:
-                value = revealed_values[i]
-                break
-        else:
-            value = UNKNOWN_Q
-        
-        self._set_value(x, y, value)
-
-    def reveal_clear_space(self, x, y):
-        try:
-            self._set_value(x, y, MINE)
-            self.get_solver().solve()
-        except mines.UnsolveableException:
-            self.solver = None
-            self.set_value(x, y, CLEAR_Q)
-            self.get_solver().solve()
-        
-        probabilities = self.get_probabilities(x, y)
-        
-        total = sum(probabilities) or 1
-
-        choice = random.randint(1, total)
-        
-        cumsum = 0
-        for i, probability in enumerate(probabilities):
-            cumsum += probability
-            if cumsum >= choice:
-                value = revealed_values[i]
-                break
-        else:
-            value = UNKNOWN_Q
-        
-        self._set_value(x, y, value)
+    def reveal_mine_space(self, x, y):
+        # Reveal x,y but make it a mine if possible
+        if not self.try_set_value(x, y, MINE):
+            self.reveal_space(x, y, discard=True)
 
     def set_value(self, x, y, value):
-        self._set_value(x, y, UNKNOWN)
-        
-        solver = self.get_solver()
-        
-        new_solver = solver.copy()
-        
-        try:
-            self._add_value_to_solver(new_solver, x, y, value)
-            
-            new_solver.solve()
-        except mines.UnsolveableException:
-            value = UNKNOWN_Q
-        
-        self._set_value(x, y, value)
+        self.try_set_value(x, y, value)
 
     def mark_known_spaces(self, value = None):
         solver = self.get_solver()
@@ -377,7 +361,7 @@ def run(width, height, count):
                 x = event.pos[0] / grid_size
                 y = event.pos[1] / grid_size
                 if event.type == MOUSEBUTTONDOWN and event.button == 1:
-                    board.reveal_clear_space(x, y)
+                    board.reveal_mine_space(x, y)
                 elif event.type == MOUSEBUTTONDOWN and event.button == 3:
                     board.clear_space(x, y)
             elif event.type == KEYDOWN:
@@ -386,7 +370,7 @@ def run(width, height, count):
                 elif event.unicode == u'h':
                     board.hint()
                 elif event.unicode == u'r':
-                    board.reveal_space(x, y)
+                    board.reveal_space(x, y, discard=True)
                 elif event.unicode == u's':
                     board.reveal_known_spaces()
             if not events:

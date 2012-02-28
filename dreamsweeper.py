@@ -361,9 +361,9 @@ def run(width, height, count):
                 x = event.pos[0] / grid_size
                 y = event.pos[1] / grid_size
                 if event.type == MOUSEBUTTONDOWN and event.button == 1:
-                    board.reveal_mine_space(x, y)
-                elif event.type == MOUSEBUTTONDOWN and event.button == 3:
                     board.clear_space(x, y)
+                elif event.type == MOUSEBUTTONDOWN and event.button == 3:
+                    board.reveal_mine_space(x, y)
             elif event.type == KEYDOWN:
                 if event.unicode in key_values:
                     board.set_value(x, y, key_values[event.unicode])

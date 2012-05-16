@@ -82,7 +82,8 @@ class DreamBoard(object):
 
     def create_solver(self, exclude = None):
         solver = mines.Solver(self.spaces)
-        solver.add_information(mines.Information(self.spaces, self.count))
+        if self.count != -1:
+            solver.add_information(mines.Information(self.spaces, self.count))
         for x in range(self.width):
             for y in range(self.height):
                 if (x, y) == exclude:
@@ -299,8 +300,10 @@ def draw_board(board, switches):
             if value == UNKNOWN and '/p' in switches:
                 if (x, y) in board.solver.solved_spaces:
                     g = board.solver.solved_spaces[x, y] * 255
-                else:
+                elif (x, y) in probabilities:
                     g = (probabilities[x, y] * 255 / total)
+                else:
+                    continue
                 pygame.draw.rect(screen, Color(g, 255-g, min(g, 255-g), 255), Rect(x * grid_size + 2, y * grid_size + 2, grid_size - 4, grid_size - 4))
 
     pygame.display.flip()

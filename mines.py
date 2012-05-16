@@ -314,6 +314,18 @@ class Solver(object):
         return result, denominator
 
     @staticmethod
+    def solver_from_cluster(cluster):
+        spaces = set()
+        for information in cluster:
+            spaces.update(information.spaces)
+
+        result = Solver(spaces)
+        for information in cluster:
+            result.add_information(information)
+
+        return result
+
+    @staticmethod
     def check_state(base_solver, space, value, states_to_validate):
         solver = base_solver.copy()
 
@@ -326,45 +338,59 @@ class Solver(object):
             return False
 
         if len(solver.solved_spaces) != len(solver.spaces):
-            # Find a space in the most informations
-            max_space = None
-            max_information = 0
-            max_information_size = 0
-            for space in spaces:
-                information_size = max(len(info.spaces) for info in base_solver.informations_for_space[space])
-                if (information_size, len(base_solver.informations_for_space[space])) > (max_information_size, max_information):
-                    max_space = space
-                    max_information_size = information_size
-                    max_information = len(base_solver.informations_for_space[space])
+            clusters = solver.get_clusters()
 
-            space = max_space
+            states_validated = solver.solved_spaces.copy()
 
-            if (space, 1) in states_to_validate:
-                first_value_to_check = 1
-            else:
-                first_value_to_check = 0
+            for cluster in clusters:
+                cluster_solver = Solver.solver_from_cluster(cluster)
 
-            res = Solver.check_state(solver, space, first_value_to_check, states_to_validate)
+                if len(cluster) <= 2:
+                    # solver.solve can handle this trivially
+                    states_validated.update((space, 0) for space in cluster_solver.spaces)
+                    states_validated.update((space, 1) for space in cluster_solver.spaces)
+                    continue
 
-            if not res:
-                res = Solver.check_state(solver, space, first_value_to_check ^ 1, states_to_validate)
+                # Find a space in the most informations
+                max_space = None
+                max_information = 0
+                max_information_size = 0
+                for space in spaces:
+                    information_size = max(len(info.spaces) for info in cluster_solver.informations_for_space[space])
+                    if (information_size, len(cluster_solver.informations_for_space[space])) > (max_information_size, max_information):
+                        max_space = space
+                        max_information_size = information_size
+                        max_information = len(cluster_solver.informations_for_space[space])
 
-            return res
+                space = max_space
+
+                if (space, 1) in states_to_validate:
+                    first_value_to_check = 1
+                else:
+                    first_value_to_check = 0
+
+                res = Solver.check_state(cluster_solver, space, first_value_to_check, states_to_validate)
+
+                if not res:
+                    res = Solver.check_state(cluster_solver, space, first_value_to_check ^ 1, states_to_validate)
+
+                    if not res:
+                        return False
+
+                states_validated.update(res)
+
+            return states_validated
         else:
             return solver.solved_spaces
 
     def solve_cluster(self, cluster):
-        spaces = set()
-        for information in cluster:
-            spaces.update(information.spaces)
+        base_solver = Solver.solver_from_cluster(cluster)
+
+        spaces = base_solver.spaces
 
         states_to_validate = set()
         states_to_validate.update((x, 0) for x in spaces)
         states_to_validate.update((x, 1) for x in spaces)
-
-        base_solver = Solver(spaces)
-        for information in cluster:
-            base_solver.add_information(information)
 
         while states_to_validate:
             space, value = states_to_validate.pop()

@@ -439,7 +439,7 @@ class Solver(object):
                         self.remove_information(information)
                         break
 
-                    breaking = True
+                    breaking = False
 
                     for other_information in self.informations_for_space[space]:
                         if other_information is information:
@@ -452,6 +452,7 @@ class Solver(object):
                             self.remove_information(other_information)
                             self.add_information(new_information)
                             self.spaces_with_new_information.add(space)
+                            breaking = True
                             break
 
                         if other_information.spaces.issubset(information.spaces):
@@ -461,6 +462,7 @@ class Solver(object):
                             self.remove_information(information)
                             self.add_information(new_information)
                             self.spaces_with_new_information.add(space)
+                            breaking = True
                             break
 
                         if other_information.count - len(other_information.spaces.difference(information.spaces)) == information.count:
@@ -475,6 +477,7 @@ class Solver(object):
                             self.add_information(new_information)
                             self.remove_information(other_information)
                             self.spaces_with_new_information.add(space)
+                            breaking = True
                             break
 
                     if breaking:

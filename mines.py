@@ -340,7 +340,7 @@ class Solver(object):
         if len(solver.solved_spaces) != len(solver.spaces):
             clusters = solver.get_clusters()
 
-            states_validated = solver.solved_spaces.copy()
+            states_validated = set(solver.solved_spaces.iteritems())
 
             for cluster in clusters:
                 cluster_solver = Solver.solver_from_cluster(cluster)
@@ -381,7 +381,7 @@ class Solver(object):
 
             return states_validated
         else:
-            return solver.solved_spaces
+            return solver.solved_spaces.iteritems()
 
     def solve_cluster(self, cluster):
         base_solver = Solver.solver_from_cluster(cluster)
@@ -398,7 +398,7 @@ class Solver(object):
             res = Solver.check_state(base_solver, space, value, states_to_validate)
 
             if res:
-                states_validated = set(res.iteritems())
+                states_validated = res
                 states_to_validate.difference_update(states_validated)
             else:
                 self.solved_spaces[space] = value ^ 1
@@ -418,7 +418,7 @@ class Solver(object):
         res = False
 
         for cluster in clusters:
-            if len(cluster) == 1:
+            if len(cluster) <= 2:
                 continue
 
             if cluster in global_clusters_checked:

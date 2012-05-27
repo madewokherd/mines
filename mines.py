@@ -295,7 +295,7 @@ class Solver(object):
         return possibilities, total
 
     def get_probabilities(self):
-        self.solve()
+        self.solve(np=False)
         clusters = self.get_clusters()
         result = {}
         denominator = 1

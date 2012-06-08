@@ -238,57 +238,32 @@ class Solver(object):
         for information in cluster:
             base_solver.add_information(information)
 
-        # Find a space in the most informations
-        max_space = None
-        max_information = 0
-        max_information_size = 0
-        for space in spaces:
-            information_size = max(len(info.spaces) for info in base_solver.informations_for_space[space])
-            if (information_size, len(base_solver.informations_for_space[space])) > (max_information_size, max_information):
-                max_space = space
-                max_information_size = information_size
-                max_information = len(base_solver.informations_for_space[space])
+        information1 = information
 
-        space_to_test = max_space
-
-        clear_solver = base_solver.copy()
-        clear_solver.add_known_value(space_to_test, 0)
-        try:
-            clear_solver.solve(np=False)
-        except UnsolveableException:
-            clear_possibilities = None
-            clear_total = 0
+        for information in cluster:
+            if information is not information1 and not information.spaces.isdisjoint(information1.spaces):
+                spaces = information.spaces.intersection(information1.spaces)
+                max_mines = min(len(spaces), information.count, information1.count)
+                break
         else:
-            clear_possibilities, clear_total = clear_solver.get_probabilities()
+            raise Exception("This shouldn't happen")
 
-        mine_solver = base_solver.copy()
-        mine_solver.add_known_value(space_to_test, 1)
-        try:
-            mine_solver.solve(np=False)
-        except UnsolveableException:
-            mine_possibilities = None
-            mine_total = 0
-        else:
-            mine_possibilities, mine_total = mine_solver.get_probabilities()
+        total = 0
+        possibilities = dict((space, 0) for space in base_solver.spaces)
 
-        total = clear_total + mine_total
-        possibilities = {}
-        for space in spaces:
-            if space == space_to_test:
-                possibilities[space] = mine_total
-            else:
-                p = 0
-                if space in clear_solver.solved_spaces:
-                    if clear_solver.solved_spaces[space]:
-                        p += clear_total
-                elif clear_possibilities:
-                    p += clear_possibilities[space]
-                if space in mine_solver.solved_spaces:
-                    if mine_solver.solved_spaces[space]:
-                        p += mine_total
-                elif mine_possibilities:
-                    p += mine_possibilities[space]
-                possibilities[space] = p
+        for i in range(max_mines+1):
+            solver = base_solver.copy()
+            try:
+                solver.add_information(Information(spaces, i))
+                solver_possibilities, solver_total = solver.get_probabilities()
+            except UnsolveableException:
+                continue
+            total += solver_total
+            for space, count in solver_possibilities.iteritems():
+                possibilities[space] += count
+            for space, value in solver.solved_spaces.iteritems():
+                if value:
+                    possibilities[space] += solver_total
 
         global_cluster_probabilities[cluster] = possibilities, total
 

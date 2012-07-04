@@ -439,13 +439,16 @@ class Solver(object):
             elif self.informations_to_add:
                 information = self.informations_to_add.pop()
 
+                modified = False
                 for space in information.spaces:
                     if space in self.solved_spaces:
-                        new_information = Information(
+                        information = Information(
                             information.spaces.difference((space,)),
                             information.count - self.solved_spaces[space])
-                        self.add_information(new_information)
-                        continue
+                        modified = True
+                if modified:
+                    self.add_information(information)
+                    continue
 
                 if information in self.information:
                     continue

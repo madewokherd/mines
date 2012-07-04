@@ -400,7 +400,7 @@ class Solver(object):
                 next(global_clusters_hits)
                 continue
 
-            promise = queue.add_task(Solver.solve_cluster, args=(self, cluster))
+            promises.append(queue.add_task(Solver.solve_cluster, args=(self, cluster)))
 
         for promise in promises:
             if promise.get():

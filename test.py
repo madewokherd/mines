@@ -93,6 +93,45 @@ class SolverTests(unittest.TestCase):
                 for space, possibilities in expected_probabilities:
                     self.assertEqual(probabilities[space], possibilities, '%s: %s' % (desc, space))
 
+    def test_probabilities(self):
+        for desc, information_descs, known_mine_spaces, known_clear_spaces, expected_possibilities, expected_probabilities in self.layouts:
+            informations = []
+            spaces = set()
+            for information in information_descs:
+                informations.append(mines.Information(frozenset(information[1:]), information[0]))
+                spaces.update(information[1:])
+
+            expected_probabilities = dict(expected_probabilities)
+
+            solver = mines.Solver(spaces)
+
+            try:
+                for information in informations:
+                    solver.add_information(information)
+                probabilities, num_possibilities = solver.get_probabilities()
+            except mines.UnsolveableException:
+                self.assertEqual(expected_possibilities, 0, desc)
+            else:
+                self.assertEqual(num_possibilities, expected_possibilities, desc)
+
+                if expected_possibilities == 0:
+                    continue
+
+                for space in spaces:
+                    if space in known_mine_spaces:
+                        if space in solver.solved_spaces:
+                            self.assertEqual(solver.solved_spaces[space], 1, '%s: %s' % (desc, space))
+                            continue
+                        expected_probability = num_possibilities
+                    elif space in known_clear_spaces:
+                        if space in solver.solved_spaces:
+                            self.assertEqual(solver.solved_spaces[space], 0, '%s: %s' % (desc, space))
+                            continue
+                        expected_probability = 0
+                    else:
+                        expected_probability = expected_probabilities[space]
+                    self.assertEqual(probabilities[space], expected_probability, '%s: %s' % (desc, space))
+
 if __name__ == '__main__':
     unittest.main()
 

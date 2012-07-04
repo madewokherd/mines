@@ -303,11 +303,7 @@ class Solver(object):
 
         return result
 
-    @staticmethod
-    def check_state(base_solver, space, value, states_to_validate):
-        solver = base_solver.copy()
-
-        solver.add_known_value(space, value)
+    def check_state(solver, states_to_validate):
         try:
             solver.solve(np=False)
         except UnsolveableException:
@@ -332,26 +328,38 @@ class Solver(object):
                 max_information = 0
                 max_information_size = 0
                 for space in cluster_solver.spaces:
-                    information_size = max(len(info.spaces) for info in cluster_solver.informations_for_space[space])
-                    if (information_size, len(cluster_solver.informations_for_space[space])) > (max_information_size, max_information):
-                        max_space = space
-                        max_information_size = information_size
-                        max_information = len(cluster_solver.informations_for_space[space])
-
-                space = max_space
-
-                if (space, 1) in states_to_validate:
-                    first_value_to_check = 1
+                    if len(cluster_solver.informations_for_space[space]) > 1:
+                        i = iter(cluster_solver.informations_for_space[space])
+                        information1 = next(i)
+                        information2 = next(i)
+                        spaces = information1.spaces.intersection(information2.spaces)
+                        max_mines = min(len(spaces), information1.count, information2.count)
+                        break
                 else:
-                    first_value_to_check = 0
+                    assert False
 
-                res = Solver.check_state(cluster_solver, space, first_value_to_check, states_to_validate)
+                first_attempt = 0
+                for space in spaces:
+                    if (space, 0) not in states_to_validate and (space, 1) in states_to_validate:
+                        first_attempt += 1
+                if first_attempt > max_mines:
+                    first_attempt = max_mines
 
-                if not res:
-                    res = Solver.check_state(cluster_solver, space, first_value_to_check ^ 1, states_to_validate)
-
-                    if not res:
-                        return False
+                for i in range(max_mines+1):
+                    if i == 0:
+                        i = first_attempt
+                    elif i == first_attempt:
+                        i = 0
+                    check_solver = cluster_solver.copy()
+                    try:
+                        check_solver.add_information(Information(spaces, i))
+                    except UnsolveableException:
+                        continue
+                    res = check_solver.check_state(states_to_validate)
+                    if res:
+                        break
+                else:
+                    return False
 
                 states_validated.update(res)
 
@@ -371,7 +379,11 @@ class Solver(object):
         while states_to_validate:
             space, value = states_to_validate.pop()
 
-            res = Solver.check_state(base_solver, space, value, states_to_validate)
+            solver = base_solver.copy()
+
+            solver.add_known_value(space, value)
+
+            res = solver.check_state(states_to_validate)
 
             if res:
                 states_validated = res

@@ -47,6 +47,11 @@ class DreamBoard(object):
         self.solver = None
         self.values = [UNKNOWN] * (width * height)
         self.spaces = frozenset((x, y) for x in range(width) for y in range(height))
+        self.possibility = None
+
+    def clear(self):
+        self.values = [UNKNOWN] * (width * height)
+        self.solver = None
 
     def get_value(self, x, y):
         return self.values[x + y * self.width]
@@ -71,13 +76,29 @@ class DreamBoard(object):
         return self.values[x + y * width] not in (UNKNOWN, UNKNOWN_Q, value) and \
             not (value < 9 and self.values[x + y * width] == CLEAR_Q)
 
+    def _recheck_possibility(self, x, y, value):
+        if self.possibility is not None:
+            if value == MINE:
+                if self.possibility[x, y] != 1:
+                    self.possibility = None
+            elif value == CLEAR_Q:
+                if self.possibility[x, y] != 0:
+                    self.possibility = None
+            elif value < 9:
+                if self.possibility[x, y] != 0:
+                    self.possibility = None
+                elif sum(self.possibility.get((i, j), 0) for i in range(x-1, x+2) for j in range(y-1, y+2)) != value:
+                    self.possibility = None
+
     def _set_value(self, x, y, value):
         if self.solver:
             if self._is_removing_information(x, y, value):
                 # cannot remove information from solver
                 self.solver = None
+                self.possibility = None
             else:
                 self._add_value_to_solver(self.solver, x, y, value)
+        self._recheck_possibility(x, y, value)
         self.values[x + y * self.width] = value
 
     def create_solver(self, exclude = None):
@@ -115,81 +136,26 @@ class DreamBoard(object):
         self.values[x + y * self.width] = value
         return True
 
-    def get_probabilities(self, x, y, discard=False, clear=False):
-        solver = self.get_solver()
-        
-        solvers = [None] * 10
-        
-        result = [0] * 10
-        
-        if clear and (discard or not self._is_removing_information(x, y, CLEAR_Q)):
-            if not self.try_set_value(x, y, CLEAR_Q):
-                return result, solvers
-            self.solver.get_probabilities()
-        
-        num_solveable = 0
-
-        for i, value in enumerate(revealed_values):
-            try:
-                if clear and value == MINE:
-                    continue
-
-                if discard:
-                    new_solver = self.get_solver_where(x, y, value)
-                else:
-                    new_solver = self.get_solver().copy()
-                    self._add_value_to_solver(new_solver, x, y, value)
-
-                solvers[i] = new_solver
-                
-                num_solveable += 1
-
-            except mines.UnsolveableException:
-                # 0 possibilities
-                pass
-
-        if num_solveable == 1:
-            for i in range(len(revealed_values)):
-                if solvers[i] is not None:
-                    result[i] = 1
-            return result, solvers
-
-        for i in range(len(revealed_values)):
-            if solvers[i] is not None:
-                try:
-                    _dummy, result[i] = solvers[i].get_probabilities()
-                except mines.UnsolveableException:
-                    # FIXME: This shouldn't happen
-                    pass
-
-        return result, solvers
-
     def get_mine_probabilities(self):
         solver = self.get_solver()
         solver.solve()
         return solver.get_probabilities()
 
     def reveal_space(self, x, y, discard=False, clear=False):
-        # Reveal x,y, ignoring what's at x,y only if discard is true
+        if discard and not clear:
+            self.set_value(x, y, UNKNOWN)
 
-        probabilities, solvers = self.get_probabilities(x, y, discard, clear)
-        
-        total = sum(probabilities) or 1
+        if clear and (discard or self.get_value(x, y) >= 9):
+            if not self.try_set_value(x, y, CLEAR_Q):
+                return False
 
-        choice = random.randint(1, total)
-        
-        cumsum = 0
-        for i, probability in enumerate(probabilities):
-            cumsum += probability
-            if cumsum >= choice:
-                value = revealed_values[i]
-                break
+        if self.possibility is None:
+            self.possibility = self.get_solver().get_possibility()
+
+        if self.possibility[x, y] == 1:
+            self.set_value(x, y, MINE)
         else:
-            # no possibilities
-            return False
-        
-        self.values[x + y * self.width] = value
-        self.solver = solvers[i]
+            self.set_value(x, y, sum(self.possibility.get((i, j), 0) for i in range(x-1, x+2) for j in range(y-1, y+2)))
         return True
 
     def clear_space(self, x, y):

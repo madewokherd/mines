@@ -140,6 +140,39 @@ class SolverTests(unittest.TestCase):
                         continue
                     self.assertEqual(probabilities[space], expected_probability, '%s: %s' % (desc, space))
 
+    def test_possibility(self):
+        desc = None
+
+        try:
+            for desc, information_descs, known_mine_spaces, known_clear_spaces, expected_possibilities, expected_probabilities in self.layouts:
+                informations = []
+                spaces = set()
+                for information in information_descs:
+                    informations.append(mines.Information(frozenset(information[1:]), information[0]))
+                    spaces.update(information[1:])
+
+                expected_probabilities = dict(expected_probabilities)
+
+                solver = mines.Solver(spaces)
+
+                try:
+                    for information in informations:
+                        solver.add_information(information)
+
+                    solver.solve()
+                except mines.UnsolveableException:
+                    self.assertEqual(expected_possibilities, 0, desc)
+                else:
+                    possibility = solver.get_possibility()
+
+                    for information in information_descs:
+                        self.assertEqual(
+                            sum(possibility[space] for space in information[1:]),
+                            information[0])
+        except:
+            print("Failing test: %s" % desc)
+            raise
+
 def choose_n(rand, n, pool):
     pool = list(pool)
     result = []

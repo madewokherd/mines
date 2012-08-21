@@ -290,6 +290,85 @@ class Solver(object):
         return result, denominator
 
     @staticmethod
+    def get_cluster_possibility(cluster, rand):
+        if len(cluster) == 1:
+            result = {}
+
+            for information in cluster:
+                break
+
+            count = information.count
+            remaining_spaces = len(information.spaces)
+            for space in information.spaces:
+                if rand.randint(1, remaining_spaces) <= count:
+                    count -= 1
+                    result[space] = 1
+                else:
+                    result[space] = 0
+                remaining_spaces -= 1
+
+            return result
+
+        spaces = set()
+        for information in cluster:
+            spaces.update(information.spaces)
+
+        base_solver = Solver(spaces)
+
+        for information in cluster:
+            base_solver.add_information(information)
+
+        information1 = information
+
+        # try to choose the same set of spaces as get_cluster_probabilities,
+        # so we can benefit from caching
+        for information in cluster:
+            if information is not information1 and not information.spaces.isdisjoint(information1.spaces):
+                spaces = information.spaces.intersection(information1.spaces)
+                max_mines = min(len(spaces), information.count, information1.count)
+                break
+        else:
+            raise Exception("This shouldn't happen")
+
+        total = 0
+        possibilities = [0] * (max_mines+1)
+        solvers = [None] * (max_mines+1)
+
+        for i in range(max_mines+1):
+            solver = base_solver.copy()
+            try:
+                solver.add_information(Information(spaces, i))
+                _solver_possibilities, possibilities[i] = solver.get_probabilities()
+                solvers[i] = solver
+            except UnsolveableException:
+                possibilities.append 
+                continue
+            total += possibilities[i]
+
+        n = rand.randint(1, total)
+        for i in range(max_mines+1):
+            n -= possibilities[i]
+            if n <= 0:
+                break
+
+        return solvers[i].get_possibility()
+
+    def get_possibility(self, rand=None):
+        self.solve(np=False)
+        clusters = self.get_clusters()
+        result = self.solved_spaces.copy()
+
+        if rand is None:
+            import random
+            rand = random.Random()
+            rand.seed()
+
+        for cluster in clusters:
+            result.update(Solver.get_cluster_possibility(cluster, rand))
+
+        return result
+
+    @staticmethod
     def solver_from_cluster(cluster):
         spaces = set()
         for information in cluster:

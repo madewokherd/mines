@@ -51,6 +51,7 @@ class SolverTests(unittest.TestCase):
         ('5/2', ((1,0,1),(1,1,2),(1,2,3),(1,3,4),(2,0,1,2,3,4)), (1,3), (0,2,4), 1, ()),
         ('difference', ((1,0,1,2),(3,1,2,3,4),), (3,4), (0,), 2, ((1,1), (2,1))),
         ('3/3', ((1,0,1,2),(1,2,3,4),), (), (), 5, ((0,2), (1,2), (2,1), (3,2), (4,2))),
+        ('auto1', ((6,1,2,4,6,7,9,11,13),(3,3,4,13,6),(3,0,1,2,3,5,8,10,11,12),(3,10,5,13,7)), (4,6,7,13), (3,), 24, ()),
     )
 
     longMessage = True
@@ -131,8 +132,10 @@ class SolverTests(unittest.TestCase):
                             self.assertEqual(solver.solved_spaces[space], 0, '%s: %s' % (desc, space))
                             continue
                         expected_probability = 0
-                    else:
+                    elif space in expected_probabilities:
                         expected_probability = expected_probabilities[space]
+                    else:
+                        continue
                     self.assertEqual(probabilities[space], expected_probability, '%s: %s' % (desc, space))
 
 def choose_n(rand, n, pool):

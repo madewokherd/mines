@@ -185,6 +185,8 @@ class RandomTests(unittest.TestCase):
 
                 solver.solve()
 
+                self.assertNotEqual(num_possibilities, 0)
+
                 self.assertEqual(prob_solved_spaces, len(solver.solved_spaces))
 
                 for spaces, total in informations:
@@ -194,19 +196,87 @@ class RandomTests(unittest.TestCase):
                             expected_value += solver.solved_spaces[i] * num_possibilities
                         else:
                             expected_value += probabilities[i]
-                    self.assertEqual(expected_value, num_possibilities * sum(actual_state[i] for i in spaces))
+                    self.assertEqual(expected_value, num_possibilities * total)
 
             self.assertEqual(actual_state, [solver.solved_spaces[i] for i in range(num_spaces)])
         except:
             print("State: %s" % actual_state)
             print("Informations: %s" % informations)
-            raise            
+            raise
+
+    def run_random_unsolvable(self, rand):
+        num_spaces = rand.randint(1,15)
+
+        actual_state = [rand.randint(0,1) for x in range(num_spaces)]
+
+        informations = []
+
+        try:
+            solver = mines.Solver(range(num_spaces))
+
+            while len(solver.solved_spaces) != num_spaces:
+                solved_spaces = set(solver.solved_spaces)
+
+                unsolved_spaces = set(range(num_spaces)) - solved_spaces
+
+                spaces = choose_n(rand, rand.randint(1, len(unsolved_spaces)), unsolved_spaces) + \
+                    choose_n(rand, rand.randint(0, len(solved_spaces)), solved_spaces)
+
+                num_mines = sum(actual_state[i] for i in spaces)
+
+                if len(informations) == 0:
+                    new_num_mines = rand.randint(0, len(spaces)-1)
+                    if new_num_mines == num_mines:
+                        new_num_mines = len(spaces)
+                    num_mines = new_num_mines
+
+                information = mines.Information(frozenset(spaces), num_mines)
+
+                informations.append(information)
+
+                solver.add_information(information)
+
+                probabilities, num_possibilities = solver.get_probabilities()
+
+                prob_solved_spaces = 0
+                for i in range(num_spaces):
+                    if i in solver.solved_spaces:
+                        prob_solved_spaces += 1
+                    elif i in probabilities and probabilities[i] in (0, num_possibilities):
+                        prob_solved_spaces += 1
+
+                solver.solve()
+
+                self.assertNotEqual(num_possibilities, 0) # unsolvable, solve() should have raised an exception
+
+                self.assertEqual(prob_solved_spaces, len(solver.solved_spaces))
+
+                for spaces, total in informations:
+                    expected_value = 0
+                    for i in spaces:
+                        if i in solver.solved_spaces:
+                            expected_value += solver.solved_spaces[i] * num_possibilities
+                        else:
+                            expected_value += probabilities[i]
+
+                    self.assertEqual(expected_value, num_possibilities * total)
+
+            self.assertNotEqual(actual_state, [solver.solved_spaces[i] for i in range(num_spaces)])
+        except mines.UnsolveableException:
+            # expected
+            pass
+        except:
+            print("State: %s" % actual_state)
+            print("Informations: %s" % informations)
+            raise
 
     def run_random_tests(self, seed):
         try:
             rand = random.Random(seed)
-            for i in range(100):
+            for i in range(500):
                 self.run_random_test(rand)
+            for i in range(500):
+                self.run_random_unsolvable(rand)
         except:
             print("Failing seed: %s" % seed)
             raise

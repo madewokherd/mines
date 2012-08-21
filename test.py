@@ -36,6 +36,7 @@ class SolverTests(unittest.TestCase):
     # num_possibilities is the number of possible solutions; set this to 0 for unsolveable configurations
     # probabilities is a sequence of tuples of (space, solutions) where solutions is the number of solutions in which that space is a mine
     layouts = (
+        ('nothing', (), (), (), 1, ()),
         ('empty', ((0,0,1,2,3),), (), (0,1,2,3), 1, ()),
         ('full', ((4,0,1,2,3),), (0,1,2,3), (), 1, ()),
         ('negative', ((-1,0,1,2,3),), (), (), 0, ()),

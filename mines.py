@@ -472,13 +472,13 @@ class Solver(object):
                         self.add_information(new_information)
                         break
 
-                    elif other_information.count - len(other_information.spaces.difference(information.spaces)) == information.count:
+                    elif other_information.count - len(other_information.spaces.difference(information.spaces)) >= information.count:
                         for space in other_information.spaces.difference(information.spaces):
                             self.add_known_value(space, 1)
                         for space in information.spaces.difference(other_information.spaces):
                             self.add_known_value(space, 0)
 
-                    elif information.count - len(information.spaces.difference(other_information.spaces)) == other_information.count:
+                    elif information.count - len(information.spaces.difference(other_information.spaces)) >= other_information.count:
                         for space in other_information.spaces.difference(information.spaces):
                             self.add_known_value(space, 0)
                         for space in information.spaces.difference(other_information.spaces):

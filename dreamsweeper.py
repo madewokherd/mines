@@ -37,6 +37,9 @@ class Board(object):
     def get_adjacent_spaces(self, space):
         raise NotImplementedError()
 
+    # options:
+    first_space_clear = False # First revealed space is always clear
+
     _solver = None
     _possibility = None
 
@@ -55,7 +58,7 @@ class Board(object):
             if self.mines != -1:
                 solver.add_information(mines.Information(self.spaces, self.mines))
 
-            for (space, (value, adjacent)) in self.known_spaces:
+            for (space, (value, adjacent)) in self.known_spaces.iteritems():
                 solver.add_known_value(space, value)
                 if adjacent != -1:
                     solver.add_information(mines.Information(frozenset(self.get_adjacent_spaces(space)), adjacent))
@@ -83,6 +86,9 @@ class Board(object):
     def reveal_space(self, space):
         if space in self.known_spaces:
             return
+
+        if self.first_space_clear and not self.known_spaces:
+            self.add_known_space(space, 0, -1)
 
         possibility = self.get_possibility()
 

@@ -64,6 +64,8 @@ class MainWindow(object):
 
         self.board = dreamsweeper.SquareBoard()
 
+        self.board.first_space_clear = True
+
         self.drawing_area = gtk.DrawingArea()
 
         self.drawing_area.connect('expose-event', self.on_area_expose)

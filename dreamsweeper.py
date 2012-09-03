@@ -39,6 +39,9 @@ CLEAR_Q = 15
 
 revealed_values = (MINE, 0, 1, 2, 3, 4, 5, 6, 7, 8)
 
+last_revealed = (-1, -1)
+show_last_revealed = False
+
 class DreamBoard(object):
     def __init__(self, width, height, count):
         self.width = width
@@ -52,6 +55,7 @@ class DreamBoard(object):
     def clear(self):
         self.values = [UNKNOWN] * (width * height)
         self.solver = None
+        self.possibility = None
 
     def get_value(self, x, y):
         return self.values[x + y * self.width]
@@ -173,6 +177,7 @@ class DreamBoard(object):
         self.try_set_value(x, y, value)
 
     def mark_known_spaces(self, value = None):
+        result = False
         solver = self.get_solver()
         solver.solve()
         
@@ -183,34 +188,69 @@ class DreamBoard(object):
                 if value is not None and solved_spaces[x, y] != value:
                     continue
                 self._set_value(x, y, MINE if solved_spaces[x, y] else CLEAR_Q)
+                return True
+        return result
 
-    def reveal_known_spaces(self):
+    def reveal_marked_spaces(self):
         result = False
         solver = self.get_solver()
         solver.solve()
         
         solved_spaces = solver.solved_spaces.copy()
         
-        for x, y in solved_spaces:
-            if solved_spaces[x, y] == 0 and self.get_value(x, y) >= 9:
-                self.reveal_space(x, y)
-                result = True
+        for x in range(self.width):
+            for y in range(self.height):
+                if self.get_value(x, y) == CLEAR_Q:
+                    self.reveal_space(x, y, discard=True)
+                    result = True
         
         return result
 
     def reveal_around_zeroes(self):
-        did_work = False
-
         for x in range(self.width):
             for y in range(self.height):
                 if self.get_value(x, y) == 0:
                     for xi in range(max(x-1, 0), min(x+2, self.width)):
                         for yi in range(max(y-1, 0), min(y+2, self.height)):
-                            if self.get_value(xi, yi) >= 9:
-                                self.reveal_space(xi, yi)
-                                did_work = True
+                            if self.get_value(xi, yi) >= 9 and self.get_value(xi, yi) != CLEAR_Q:
+                                #self.reveal_space(xi, yi)
+                                self.set_value(xi, yi, CLEAR_Q)
+                                return True
         
-        return did_work
+        return False
+
+    def reveal_sparse(self):
+        global last_revealed
+        global show_last_revealed
+        solver = self.get_solver()
+        spaces_to_reveal = set()
+        for space in solver.solved_spaces:
+            if self.get_value(*space) in (UNKNOWN, UNKNOWN_Q):
+                show_last_revealed = True
+                return False
+            elif self.get_value(*space) == CLEAR_Q:
+                spaces_to_reveal.add(space)
+        if spaces_to_reveal:
+            space = random.choice(list(spaces_to_reveal))
+            self.reveal_space(*space)
+            last_revealed = space
+            show_last_revealed = False
+            return True
+        solved_spaces = set(solver.solved_spaces)
+        if solved_spaces == set(solver.spaces):
+            show_last_revealed = False
+            return False
+        space = random.choice(list(solver.spaces - solved_spaces))
+        self.reveal_space(*space)
+        last_revealed = space
+        show_last_revealed = False
+        return True
+
+    def _hint_score(self, item):
+        space, probability = item
+        solver = self.get_solver()
+        informations = solver.informations_for_space[space]
+        return probability, -max(len(i.spaces) for i in informations), -len(informations)
 
     def hint(self):
         solver = self.get_solver()
@@ -218,10 +258,17 @@ class DreamBoard(object):
 
         for x, y in solver.solved_spaces:
             if solver.solved_spaces[x, y] == 0 and self.get_value(x, y) >= 9:
-                self.reveal_space(x, y)
+                self.set_value(x, y, CLEAR_Q)
                 return True
 
         probabilities, _dummy = solver.get_probabilities()
+        
+        items = list(probabilities.iteritems())
+        random.shuffle(items)
+        
+        x, y = min(items, key=self._hint_score)[0]
+        self.set_value(x, y, CLEAR_Q)
+        return True
         
         total = sum(probabilities.itervalues())
 
@@ -266,11 +313,17 @@ def draw_board(board, switches):
             if value == UNKNOWN and '/p' in switches:
                 if (x, y) in board.solver.solved_spaces:
                     g = board.solver.solved_spaces[x, y] * 255
+                    border = 1
                 elif (x, y) in probabilities:
                     g = (probabilities[x, y] * 255 / total)
+                    border = 2
                 else:
                     continue
-                pygame.draw.rect(screen, Color(g, 255-g, min(g, 255-g), 255), Rect(x * grid_size + 2, y * grid_size + 2, grid_size - 4, grid_size - 4))
+                pygame.draw.rect(screen, Color(g, 255-g, min(g, 255-g), 255), Rect(x * grid_size + border, y * grid_size + border, grid_size - border*2, grid_size - border*2))
+
+    if show_last_revealed:
+        x, y = last_revealed
+        pygame.draw.rect(screen, Color(255, 255, 0, 32), Rect(x * grid_size-1, y * grid_size-1, grid_size+1, grid_size+1), 1)
 
     pygame.display.flip()
 
@@ -291,33 +344,46 @@ key_values = {
     }
 
 def run(width, height, count):
+    global show_last_revealed
     board = DreamBoard(width, height, count)
 
     window = pygame.display.set_mode((width * grid_size, height * grid_size))
 
     x = y = 0
 
+    prev_count = count
+
     while True:
-        while True:
-            if '/r' in switches and board.reveal_known_spaces():
-                continue
+        if '/d' in switches:
+            __import__('time').sleep(0.2)
 
-            if '/0' in switches and board.reveal_around_zeroes():
-                continue
+        draw_board(board, switches)
 
-            if '/h' in switches and board.maybe_hint():
-                continue
-            
-            break
+        if '/r' in switches and board.reveal_marked_spaces():
+            continue
 
-        if '/m' in switches:
-            board.mark_known_spaces()
+        if '/0' in switches and board.reveal_around_zeroes():
+            continue
 
-        if '/mm' in switches:
-            board.mark_known_spaces(1)
+        if '/h' in switches and board.maybe_hint():
+            continue
 
-        if '/mc' in switches:
-            board.mark_known_spaces(0)
+        if '/m' in switches and board.mark_known_spaces():
+            continue
+
+        if '/mm' in switches and board.mark_known_spaces(1):
+            continue
+
+        if '/mc' in switches and board.mark_known_spaces(0):
+            continue
+
+        if '/s' in switches and board.reveal_sparse():
+            continue
+
+        cur_count = count - len(list(x for x in board.values if x == MINE))
+        if cur_count != prev_count:
+            prev_count = cur_count
+            print cur_count
 
         draw_board(board, switches)
         
@@ -330,20 +396,34 @@ def run(width, height, count):
                 x = event.pos[0] / grid_size
                 y = event.pos[1] / grid_size
                 if event.type == MOUSEBUTTONDOWN and event.button == 1:
-                    board.clear_space(x, y)
+                    #board.clear_space(x, y)
+                    board.set_value(x, y, CLEAR_Q)
+                    show_last_revealed = False
                 elif event.type == MOUSEBUTTONDOWN and event.button == 3:
-                    board.reveal_mine_space(x, y)
+                    #board.reveal_mine_space(x, y)
+                    board.set_value(x, y, MINE)
+                    show_last_revealed = False
             elif event.type == KEYDOWN:
                 if event.unicode in key_values:
                     board.set_value(x, y, key_values[event.unicode])
+                    show_last_revealed = False
                 elif event.unicode == u'h':
                     board.hint()
+                    show_last_revealed = False
                 elif event.unicode == u'r':
                     board.reveal_space(x, y, discard=True)
+                    show_last_revealed = False
                 elif event.unicode == u's':
-                    board.reveal_known_spaces()
+                    board.mark_known_spaces()
+                    show_last_revealed = False
+                elif event.unicode == u'p':
+                    switches.symmetric_difference_update(set(['/p']))
+                elif event.key == pygame.K_BACKSPACE:
+                    board.clear()
+                    show_last_revealed = False
             if not events:
                 events = pygame.event.get()
+            draw_board(board, switches)
 
 if __name__ == '__main__':
     switches = set()

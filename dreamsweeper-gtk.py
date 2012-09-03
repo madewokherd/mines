@@ -34,7 +34,6 @@ mine_color = gtk.gdk.color_parse('#000')
 mine_num_color = gtk.gdk.color_parse('#FFF')
 
 unknown_color = gtk.gdk.color_parse('#aaa')
-unknown_num_color = gtk.gdk.color_parse('#555')
 
 def pango_layout_from_box(context, text, width, height):
     desc = pango.FontDescription('Sans')
@@ -111,6 +110,16 @@ class MainWindow(object):
                 gc.set_rgb_fg_color(unknown_color)
             drawable.draw_polygon(gc, True, polygon)
 
+            if space in self.board.flagged_spaces:
+                value = self.board.flagged_spaces[space]
+
+                if value:
+                    gc.set_rgb_fg_color(mine_color)
+                else:
+                    gc.set_rgb_fg_color(clear_color)
+
+                drawable.draw_rectangle(gc, True, box[0] + box[2]/4, box[1] + box[3]/4, box[2]/2, box[3]/2)
+
             adjacent = -1
             if space in self.board.known_spaces:
                 value, adjacent = self.board.known_spaces[space]
@@ -118,9 +127,6 @@ class MainWindow(object):
                     gc.set_rgb_fg_color(mine_num_color)
                 else:
                     gc.set_rgb_fg_color(clear_num_color)
-            elif space in self.board.flagged_spaces:
-                value, adjacent = self.board.known_spaces[space]
-                gc.set_rgb_fg_color(unknown_num_color)
 
             if adjacent != -1:
                 context = widget.get_pango_context()
@@ -138,6 +144,9 @@ class MainWindow(object):
         return True
 
     def on_button_press(self, widget, event):
+        if self.held_mouse_button is not None:
+            return
+
         allocation = widget.get_allocation()
         mouse_space = self.board.space_at_point(event.x, event.y, allocation.width, allocation.height)
 
@@ -148,11 +157,17 @@ class MainWindow(object):
             self.drawing_area.queue_draw()
 
     def on_button_release(self, widget, event):
+        if event.button != self.held_mouse_button:
+            return
+
         allocation = widget.get_allocation()
         mouse_space = self.board.space_at_point(event.x, event.y, allocation.width, allocation.height)
 
-        if self.held_mouse_button == 1 and mouse_space is not None:
-            self.board.reveal_space(mouse_space)
+        if mouse_space is not None:
+            if self.held_mouse_button == 1:
+                self.board.reveal_space(mouse_space)
+            elif self.held_mouse_button == 3:
+                self.board.flag_space(mouse_space, 1)
 
         self.mouse_space = None
         self.held_mouse_button = None

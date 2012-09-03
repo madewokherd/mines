@@ -91,7 +91,7 @@ class Board(object):
 
     def reveal_space(self, space):
         if space in self.known_spaces:
-            return
+            return False
 
         if self.first_space_zero and not self.known_spaces:
             self.add_known_space(space, 0, 0)
@@ -109,6 +109,22 @@ class Board(object):
             adjacent = sum(possibility[s] for s in self.get_adjacent_spaces(space))
 
         self.add_known_space(space, value, adjacent)
+
+        return True
+
+    def flag_space(self, space, value=None):
+        if space in self.known_spaces:
+            return False
+
+        if value is None:
+            new_value = self.flagged_spaces.get(space, 2)-1
+        else:
+            new_value = value if self.flagged_spaces.get(space, -1) != value else -1
+
+        if new_value == -1:
+            del self.flagged_spaces[space]
+        else:
+            self.flagged_spaces[space] = new_value
 
         return True
 

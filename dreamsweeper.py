@@ -28,6 +28,9 @@ class Board(object):
     def get_polygon(self, space, width, height):
         raise NotImplementedError()
 
+    def get_text_box(self, space, width, height):
+        raise NotImplementedError()
+
     def space_at_point(self, x, y, width, height):
         raise NotImplementedError()
 
@@ -113,6 +116,16 @@ class SquareBoard(Board):
 
         return ((left, top), (right, top), (right, bottom), (left, bottom))
 
+    def get_text_box(self, space, width, height):
+        (x, y) = space
+
+        left = x * (width-1) / self.width
+        right = (x+1) * (width-1) / self.width
+        top = y * (height-1) / self.height
+        bottom = (y+1) * (height-1) / self.height
+
+        return left, top, right-left, bottom-top
+
     def space_at_point(self, x, y, width, height):
         result = (int(x * self.width // (width+1)), int(y * self.height // (height+1)))
 
@@ -127,5 +140,5 @@ class SquareBoard(Board):
         max_x = min(self.width-1, x+1)
         min_y = max(0, y-1)
         max_y = min(self.height-1, y+1)
-        return frozenset((x, y) for x in range(min_x, max_x - min_x + 1) for y in range(min_y, max_y - min_y + 1))
+        return frozenset((x, y) for x in range(min_x, max_x + 1) for y in range(min_y, max_y + 1))
 

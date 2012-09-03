@@ -21,6 +21,7 @@
 import sys
 
 import gtk
+import pango
 
 import dreamsweeper
 
@@ -34,6 +35,26 @@ mine_num_color = gtk.gdk.color_parse('#FFF')
 
 unknown_color = gtk.gdk.color_parse('#aaa')
 unknown_num_color = gtk.gdk.color_parse('#555')
+
+def pango_layout_from_box(context, text, width, height):
+    desc = pango.FontDescription('Sans')
+    desc.set_size(1024 * 1024)
+
+    layout = pango.Layout(context)
+    layout.set_text(text)
+    layout.set_width(-1)
+    layout.set_font_description(desc)
+
+    drawn_extents, logical_extents = layout.get_extents()
+    _x, _y, layout_width, layout_height = logical_extents
+
+    scale = min(float(width) * pango.SCALE / layout_width, float(height) * pango.SCALE / layout_height)
+
+    desc.set_size(int(desc.get_size() * scale))
+
+    layout.set_font_description(desc)
+
+    return layout
 
 class MainWindow(object):
     def __init__(self):
@@ -73,6 +94,8 @@ class MainWindow(object):
 
             polygon = tuple((int(x), int(y)) for (x, y) in polygon)
 
+            box = tuple(int(x) for x in self.board.get_text_box(space, allocation.width, allocation.height))
+
             if space in self.board.known_spaces:
                 value, adjacent = self.board.known_spaces[space]
                 if value:
@@ -84,6 +107,28 @@ class MainWindow(object):
             else:
                 gc.set_rgb_fg_color(unknown_color)
             drawable.draw_polygon(gc, True, polygon)
+
+            adjacent = -1
+            if space in self.board.known_spaces:
+                value, adjacent = self.board.known_spaces[space]
+                if value:
+                    gc.set_rgb_fg_color(mine_num_color)
+                else:
+                    gc.set_rgb_fg_color(clear_num_color)
+            elif space in self.board.flagged_spaces:
+                value, adjacent = self.board.known_spaces[space]
+                gc.set_rgb_fg_color(unknown_num_color)
+
+            if adjacent != -1:
+                context = widget.get_pango_context()
+                layout = pango_layout_from_box(context, str(adjacent), box[2], box[3])
+
+                drawn_extents, logical_extents = layout.get_pixel_extents()
+                layout_x, layout_y, layout_width, layout_height = logical_extents
+                xofs = int((box[2] - layout_width) / 2)
+                yofs = int((box[3] - layout_height) / 2)
+
+                drawable.draw_layout(gc, box[0] + xofs, box[1] + yofs, layout)
 
             gc.set_rgb_fg_color(border_color)
             drawable.draw_polygon(gc, False, polygon)

@@ -18,6 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from __future__ import division
+
 class Board(object):
     spaces = () # should be set to frozenset of spaces by subclass's __init__
 
@@ -29,9 +31,24 @@ class Board(object):
         self.known_spaces = {}
         self.flagged_spaces = {}
 
+    def get_polygon(self, space, width, height):
+        raise NotImplementedError()
+
 class SquareBoard(Board):
     def __init__(self, width=12, height=12, mines=36):
         self.spaces = frozenset((x, y) for x in range(width) for y in range(height))
+        self.width = width
+        self.height = height
 
         Board.__init__(self, mines)
+
+    def get_polygon(self, space, width, height):
+        (x, y) = space
+
+        left = x * (width-1) / self.width
+        right = (x+1) * (width-1) / self.width
+        top = y * (height-1) / self.height
+        bottom = (y+1) * (height-1) / self.height
+
+        return ((left, top), (right, top), (right, bottom), (left, bottom))
 

@@ -22,11 +22,26 @@ import sys
 
 import gtk
 
+import dreamsweeper
+
+border_color = gtk.gdk.color_parse('#CCC')
+
+clear_color = gtk.gdk.color_parse('#FFF')
+clear_num_color = gtk.gdk.color_parse('#000')
+
+mine_color = gtk.gdk.color_parse('#000')
+mine_num_color = gtk.gdk.color_parse('#FFF')
+
+unknown_color = gtk.gdk.color_parse('#888')
+unknown_num_color = gtk.gdk.color_parse('#444')
+
 class MainWindow(object):
     def __init__(self):
         self.window = gtk.Window()
 
         self.window.connect('delete-event', self.on_delete)
+
+        self.board = dreamsweeper.SquareBoard()
 
         self.drawing_area = gtk.DrawingArea()
 
@@ -45,7 +60,16 @@ class MainWindow(object):
         drawable = widget.window
         allocation = widget.get_allocation()
         gc = drawable.new_gc()
-        drawable.draw_rectangle(gc, True, 0, 0, allocation.width, allocation.height)
+        for space in self.board.spaces:
+            polygon = self.board.get_polygon(space, allocation.width, allocation.height)
+
+            polygon = tuple((int(x), int(y)) for (x, y) in polygon)
+
+            gc.set_rgb_fg_color(unknown_color)
+            drawable.draw_polygon(gc, True, polygon)
+
+            gc.set_rgb_fg_color(border_color)
+            drawable.draw_polygon(gc, False, polygon)
         return True
 
 

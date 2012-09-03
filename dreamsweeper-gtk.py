@@ -28,10 +28,26 @@ class MainWindow(object):
 
         self.window.connect('delete-event', self.on_delete)
 
+        self.drawing_area = gtk.DrawingArea()
+
+        self.drawing_area.connect('expose-event', self.on_area_expose)
+
+        self.drawing_area.show()
+
+        self.window.add(self.drawing_area)
+
         self.window.show()
 
     def on_delete(self, widget, event):
         gtk.main_quit()
+
+    def on_area_expose(self, widget, event):
+        drawable = widget.window
+        allocation = widget.get_allocation()
+        gc = drawable.new_gc()
+        drawable.draw_rectangle(gc, True, 0, 0, allocation.width, allocation.height)
+        return True
+
 
 def main(argv):
     window = MainWindow()

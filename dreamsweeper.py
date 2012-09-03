@@ -39,6 +39,7 @@ class Board(object):
 
     # options:
     first_space_clear = False # First revealed space is always clear
+    first_space_zero = False # First revealed space is always clear with no adjacent mines
 
     _solver = None
     _possibility = None
@@ -87,7 +88,9 @@ class Board(object):
         if space in self.known_spaces:
             return
 
-        if self.first_space_clear and not self.known_spaces:
+        if self.first_space_zero and not self.known_spaces:
+            self.add_known_space(space, 0, 0)
+        elif self.first_space_clear and not self.known_spaces:
             self.add_known_space(space, 0, -1)
 
         possibility = self.get_possibility()

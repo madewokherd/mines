@@ -64,7 +64,7 @@ class MainWindow(object):
 
         self.board = dreamsweeper.SquareBoard()
 
-        self.board.first_space_clear = True
+        self.board.first_space_zero = True
 
         self.drawing_area = gtk.DrawingArea()
 

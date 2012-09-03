@@ -56,7 +56,7 @@ class SquareBoard(Board):
         return ((left, top), (right, top), (right, bottom), (left, bottom))
 
     def space_at_point(self, x, y, width, height):
-        result = (int(x * self.width / (width+1)), int(y * self.height / (height+1)))
+        result = (int(x * self.width // (width+1)), int(y * self.height // (height+1)))
 
         if result in self.spaces:
             return result

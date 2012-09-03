@@ -24,7 +24,7 @@ import gtk
 
 import dreamsweeper
 
-border_color = gtk.gdk.color_parse('#CCC')
+border_color = gtk.gdk.color_parse('#555')
 
 clear_color = gtk.gdk.color_parse('#FFF')
 clear_num_color = gtk.gdk.color_parse('#000')
@@ -32,8 +32,8 @@ clear_num_color = gtk.gdk.color_parse('#000')
 mine_color = gtk.gdk.color_parse('#000')
 mine_num_color = gtk.gdk.color_parse('#FFF')
 
-unknown_color = gtk.gdk.color_parse('#888')
-unknown_num_color = gtk.gdk.color_parse('#444')
+unknown_color = gtk.gdk.color_parse('#aaa')
+unknown_num_color = gtk.gdk.color_parse('#555')
 
 class MainWindow(object):
     def __init__(self):
@@ -47,8 +47,10 @@ class MainWindow(object):
 
         self.drawing_area.connect('expose-event', self.on_area_expose)
         self.drawing_area.connect('motion-notify-event', self.on_area_motion)
+        self.drawing_area.connect('button-press-event', self.on_button_press)
+        self.drawing_area.connect('button-release-event', self.on_button_release)
 
-        self.drawing_area.set_events(gtk.gdk.EXPOSURE_MASK | gtk.gdk.POINTER_MOTION_MASK)
+        self.drawing_area.set_events(gtk.gdk.EXPOSURE_MASK | gtk.gdk.BUTTON_MOTION_MASK | gtk.gdk.BUTTON_PRESS_MASK | gtk.gdk.BUTTON_RELEASE_MASK)
 
         self.drawing_area.show()
 
@@ -57,6 +59,7 @@ class MainWindow(object):
         self.window.show()
 
         self.mouse_space = None
+        self.held_mouse_button = None
 
     def on_delete(self, widget, event):
         gtk.main_quit()
@@ -80,11 +83,26 @@ class MainWindow(object):
             drawable.draw_polygon(gc, False, polygon)
         return True
 
+    def on_button_press(self, widget, event):
+        allocation = widget.get_allocation()
+        mouse_space = self.board.space_at_point(event.x, event.y, allocation.width, allocation.height)
+
+        self.held_mouse_button = event.button
+
+        if mouse_space != self.mouse_space:
+            self.mouse_space = mouse_space
+            self.drawing_area.queue_draw()
+
+    def on_button_release(self, widget, event):
+        self.held_mouse_button = None
+        self.mouse_space = None
+        self.drawing_area.queue_draw()
+
     def on_area_motion(self, widget, event):
         allocation = widget.get_allocation()
         mouse_space = self.board.space_at_point(event.x, event.y, allocation.width, allocation.height)
 
-        if mouse_space != self.mouse_space:
+        if self.held_mouse_button is not None and mouse_space != self.mouse_space:
             self.mouse_space = mouse_space
             self.drawing_area.queue_draw()
 

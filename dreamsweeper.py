@@ -20,8 +20,22 @@
 
 from __future__ import division
 
+import mines
+
 class Board(object):
     spaces = () # should be set to frozenset of spaces by subclass's __init__
+
+    def get_polygon(self, space, width, height):
+        raise NotImplementedError()
+
+    def space_at_point(self, x, y, width, height):
+        raise NotImplementedError()
+
+    def get_adjacent_spaces(self, space):
+        raise NotImplementedError()
+
+    _solver = None
+    _possibility = None
 
     def __init__(self, mines=-1):
         if type(self) == Board:
@@ -31,11 +45,55 @@ class Board(object):
         self.known_spaces = {}
         self.flagged_spaces = {}
 
-    def get_polygon(self, space, width, height):
-        raise NotImplementedError()
+    def get_solver(self):
+        if self._solver is None:
+            solver = mines.Solver(self.spaces)
 
-    def space_at_point(self, x, y, width, height):
-        raise NotImplementedError()
+            if self.mines != -1:
+                solver.add_information(mines.Information(self.spaces, self.mines))
+
+            for (space, (value, adjacent)) in self.known_spaces:
+                solver.add_known_value(space, value)
+                if adjacent != -1:
+                    solver.add_information(mines.Information(frozenset(self.get_adjacent_spaces(space)), adjacent))
+
+            self._solver = solver
+
+        return self._solver
+
+    def get_possibility(self):
+        if self._possibility is None:
+            solver = self.get_solver()
+
+            self._possibility = solver.get_possibility()
+
+        return self._possibility
+
+    def add_known_space(self, space, value, adjacent):
+        self.known_spaces[space] = (value, adjacent)
+
+        if space in self.flagged_spaces:
+            del self.flagged_spaces[space]
+
+        return True
+
+    def reveal_space(self, space):
+        if space in self.known_spaces:
+            return
+
+        possibility = self.get_possibility()
+
+        value = possibility[space]
+
+        if value:
+            # mine
+            adjacent = -1
+        else:
+            adjacent = sum(possibility[s] for s in self.get_adjacent_spaces(space))
+
+        self.add_known_space(space, value, adjacent)
+
+        return True
 
 class SquareBoard(Board):
     def __init__(self, width=12, height=12, mines=36):
@@ -62,4 +120,12 @@ class SquareBoard(Board):
             return result
         else:
             return None
+
+    def get_adjacent_spaces(self, space):
+        x, y = space
+        min_x = max(0, x-1)
+        max_x = min(self.width-1, x+1)
+        min_y = max(0, y-1)
+        max_y = min(self.height-1, y+1)
+        return frozenset((x, y) for x in range(min_x, max_x - min_x + 1) for y in range(min_y, max_y - min_y + 1))
 

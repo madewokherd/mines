@@ -73,7 +73,13 @@ class MainWindow(object):
 
             polygon = tuple((int(x), int(y)) for (x, y) in polygon)
 
-            if space == self.mouse_space:
+            if space in self.board.known_spaces:
+                value, adjacent = self.board.known_spaces[space]
+                if value:
+                    gc.set_rgb_fg_color(mine_color)
+                else:
+                    gc.set_rgb_fg_color(clear_color)
+            elif space == self.mouse_space:
                 gc.set_rgb_fg_color(clear_color)
             else:
                 gc.set_rgb_fg_color(unknown_color)
@@ -94,8 +100,14 @@ class MainWindow(object):
             self.drawing_area.queue_draw()
 
     def on_button_release(self, widget, event):
-        self.held_mouse_button = None
+        allocation = widget.get_allocation()
+        mouse_space = self.board.space_at_point(event.x, event.y, allocation.width, allocation.height)
+
+        if self.held_mouse_button == 1 and mouse_space is not None:
+            self.board.reveal_space(mouse_space)
+
         self.mouse_space = None
+        self.held_mouse_button = None
         self.drawing_area.queue_draw()
 
     def on_area_motion(self, widget, event):

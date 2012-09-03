@@ -34,6 +34,9 @@ class Board(object):
     def get_polygon(self, space, width, height):
         raise NotImplementedError()
 
+    def space_at_point(self, x, y, width, height):
+        raise NotImplementedError()
+
 class SquareBoard(Board):
     def __init__(self, width=12, height=12, mines=36):
         self.spaces = frozenset((x, y) for x in range(width) for y in range(height))
@@ -51,4 +54,12 @@ class SquareBoard(Board):
         bottom = (y+1) * (height-1) / self.height
 
         return ((left, top), (right, top), (right, bottom), (left, bottom))
+
+    def space_at_point(self, x, y, width, height):
+        result = (int(x * self.width / (width+1)), int(y * self.height / (height+1)))
+
+        if result in self.spaces:
+            return result
+        else:
+            return None
 

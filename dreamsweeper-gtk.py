@@ -46,12 +46,17 @@ class MainWindow(object):
         self.drawing_area = gtk.DrawingArea()
 
         self.drawing_area.connect('expose-event', self.on_area_expose)
+        self.drawing_area.connect('motion-notify-event', self.on_area_motion)
+
+        self.drawing_area.set_events(gtk.gdk.EXPOSURE_MASK | gtk.gdk.POINTER_MOTION_MASK)
 
         self.drawing_area.show()
 
         self.window.add(self.drawing_area)
 
         self.window.show()
+
+        self.mouse_space = None
 
     def on_delete(self, widget, event):
         gtk.main_quit()
@@ -65,12 +70,23 @@ class MainWindow(object):
 
             polygon = tuple((int(x), int(y)) for (x, y) in polygon)
 
-            gc.set_rgb_fg_color(unknown_color)
+            if space == self.mouse_space:
+                gc.set_rgb_fg_color(clear_color)
+            else:
+                gc.set_rgb_fg_color(unknown_color)
             drawable.draw_polygon(gc, True, polygon)
 
             gc.set_rgb_fg_color(border_color)
             drawable.draw_polygon(gc, False, polygon)
         return True
+
+    def on_area_motion(self, widget, event):
+        allocation = widget.get_allocation()
+        mouse_space = self.board.space_at_point(event.x, event.y, allocation.width, allocation.height)
+
+        if mouse_space != self.mouse_space:
+            self.mouse_space = mouse_space
+            self.drawing_area.queue_draw()
 
 
 def main(argv):

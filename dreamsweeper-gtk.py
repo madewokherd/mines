@@ -65,6 +65,7 @@ class MainWindow(object):
         self.board = dreamsweeper.SquareBoard()
 
         self.board.first_space_zero = True
+        self.board.reveal_around_zeroes = True
 
         self.drawing_area = gtk.DrawingArea()
 

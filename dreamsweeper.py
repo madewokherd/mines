@@ -40,6 +40,7 @@ class Board(object):
     # options:
     first_space_clear = False # First revealed space is always clear
     first_space_zero = False # First revealed space is always clear with no adjacent mines
+    reveal_around_zeroes = False # Automatically reveal spaces adjacent to zeros
 
     _solver = None
     _possibility = None
@@ -81,6 +82,10 @@ class Board(object):
 
         if space in self.flagged_spaces:
             del self.flagged_spaces[space]
+
+        if self.reveal_around_zeroes and adjacent == 0:
+            for s in self.get_adjacent_spaces(space):
+                self.reveal_space(s)
 
         return True
 

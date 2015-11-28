@@ -1,6 +1,6 @@
 #!/bin/sh
 
-SRCS="IntSet.hx IntSetTest.hx RunTests.hx"
+SRCS="Information.hx IntSet.hx IntSetTest.hx RunTests.hx SolveResult.hx"
 
 haxe -main RunTests $SRCS -js jsout.js -D node || exit 1
 

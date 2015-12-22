@@ -12,6 +12,7 @@ class RunTests {
 
         var r = new haxe.unit.TestRunner();
         r.add(new IntSetTest());
+        r.add(new HashSetTest());
         if (!r.run()) {
 #if node
             untyped process.exit(1);

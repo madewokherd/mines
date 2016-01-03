@@ -95,14 +95,20 @@ private abstract IntArray(haxe.ds.Vector<Int>) {
 class IntSet {
     static inline public var item_mask = IntArray.bits_per_item-1;
 
+    /* Allocated space */
+    var blocks : IntArray;
+    var blocks_start : Int;
+
+    /* Nonzero range within allocated space */
     var first_block : Int;
     var end_block : Int;
-    var blocks : IntArray;
 
     public function new() {
+        blocks = null;
+        blocks_start = 0;
+
         first_block = 0;
         end_block = 0;
-        blocks = null;
     }
 
     private static inline function blockof(x:Int) {
@@ -128,30 +134,56 @@ class IntSet {
     }
 
     private inline function get_block(block) {
-        return blocks[block-first_block];
+        return blocks[block-blocks_start];
     }
 
     private inline function set_block(block, val) {
-        blocks[block-first_block] = val;
+        blocks[block-blocks_start] = val;
     }
 
     public function alloc_range(first, last) {
         var range_first_block = blockof(first);
         var range_end_block = blockof(last)+1;
-        if (first_block == end_block) {
-            first_block = range_first_block;
-            end_block = range_end_block;
-            blocks = new IntArray(end_block-first_block);
+        if (blocks == null || end_block <= first_block) {
+            blocks_start = range_first_block;
+            blocks = new IntArray(range_end_block-range_first_block);
         }
-        else if (range_first_block < first_block || range_end_block > end_block)
-        {
-            var new_first_block = min(range_first_block, first_block);
-            var new_end_block = max(range_end_block, end_block);
-            var new_blocks = new IntArray(new_end_block - new_first_block);
-            new_blocks.copy_from(first_block - new_first_block, blocks);
-            first_block = new_first_block;
-            end_block = new_end_block;
-            blocks = new_blocks;
+        else {
+            var blocks_end = blocks_start + blocks.get_length();
+            if (range_first_block < blocks_start || range_end_block > blocks_end) {
+                /* check e.g. first_block instead of blocks_start so we don't allocate unused space */
+                var new_blocks_start = min(range_first_block, first_block);
+                var new_blocks_end = max(range_end_block, end_block);
+
+                var new_blocks = new IntArray(new_blocks_end - new_blocks_start);
+                new_blocks.copy_range(first_block - new_blocks_start, blocks, first_block - blocks_start, end_block - first_block);
+                blocks_start = new_blocks_start;
+                blocks = new_blocks;
+            }
+        }
+    }
+
+    private function mark_block_used(block) {
+        if (end_block <= first_block) {
+            first_block = block;
+            end_block = block+1;
+        }
+        else if (first_block > block) {
+            first_block = block;
+        }
+        else if (end_block < block+1) {
+            end_block = block+1;
+        }
+    }
+
+    private function mark_block_maybe_unused(block) {
+        if (block == first_block) {
+            while (first_block < end_block && get_block(first_block) == 0)
+                first_block++;
+        }
+        else if (block == end_block-1) {
+            while (first_block < end_block && get_block(end_block-1) == 0)
+                end_block--;
         }
     }
 
@@ -160,6 +192,7 @@ class IntSet {
         alloc_range(x, x);
         var bit_mask = 1 << shiftof(x);
         set_block(block, get_block(block)|bit_mask);
+        mark_block_used(block);
     }
 
     public function remove(x) {
@@ -168,6 +201,7 @@ class IntSet {
         {
             var bit_mask = 1 << shiftof(x);
             set_block(block, get_block(block)&(~bit_mask));
+            mark_block_maybe_unused(block);
         }
     }
 

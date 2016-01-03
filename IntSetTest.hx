@@ -31,6 +31,16 @@ class IntSetTest extends haxe.unit.TestCase {
         assertFalse(s.contains(3));
         assertTrue(s.contains(100));
         assertFalse(s.contains(50));
+        s.remove(-10);
+        assertFalse(s.contains(-10));
+        assertFalse(s.contains(3));
+        assertTrue(s.contains(100));
+        assertFalse(s.contains(50));
+        s.remove(100);
+        assertFalse(s.contains(-10));
+        assertFalse(s.contains(3));
+        assertFalse(s.contains(100));
+        assertFalse(s.contains(50));
     }
 }
 

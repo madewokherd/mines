@@ -103,12 +103,18 @@ class IntSet {
     var first_block : Int;
     var end_block : Int;
 
+    var hash_code_cached : Bool;
+    var hash_code : Int;
+
     public function new() {
         blocks = null;
         blocks_start = 0;
 
         first_block = 0;
         end_block = 0;
+
+        hash_code_cached = true;
+        hash_code = 0;
     }
 
     private static inline function blockof(x:Int) {
@@ -193,6 +199,7 @@ class IntSet {
         var bit_mask = 1 << shiftof(x);
         set_block(block, get_block(block)|bit_mask);
         mark_block_used(block);
+        hash_code_cached = false;
     }
 
     public function remove(x) {
@@ -202,6 +209,7 @@ class IntSet {
             var bit_mask = 1 << shiftof(x);
             set_block(block, get_block(block)&(~bit_mask));
             mark_block_maybe_unused(block);
+            hash_code_cached = false;
         }
     }
 
@@ -211,6 +219,24 @@ class IntSet {
             return false;
         var bit_mask = 1 << shiftof(x);
         return (get_block(block) & bit_mask) != 0;
+    }
+
+    public function hashCode() : Int {
+        if (!hash_code_cached) {
+            if (end_block <= first_block) {
+                hash_code = 0;
+            }
+            else {
+                hash_code = first_block & 2147483647;
+                var block = first_block;
+                while (block < end_block) {
+                    hash_code = ((33 * hash_code) ^ (get_block(block) % 2147483647)) & 2147483647;
+                    block++;
+                }
+            }
+            hash_code_cached = true;
+        }
+        return hash_code;
     }
 }
 

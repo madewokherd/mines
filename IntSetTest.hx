@@ -89,5 +89,48 @@ class IntSetTest extends haxe.unit.TestCase {
 
         assertEquals(sixty_hash, s.hashCode());
     }
+
+    public function testEquals() {
+        var a = new IntSet();
+        var b = new IntSet();
+        var empty = new IntSet();
+
+        assertTrue(a.equals(empty));
+        assertTrue(empty.equals(a));
+
+        a.alloc_range(5,10);
+
+        assertTrue(a.equals(empty));
+        assertTrue(empty.equals(a));
+
+        a.add(7);
+
+        assertFalse(a.equals(empty));
+        assertFalse(empty.equals(a));
+
+        b.add(60);
+
+        assertFalse(a.equals(b));
+        assertFalse(b.equals(a));
+
+        b.add(7);
+
+        assertFalse(a.equals(b));
+        assertFalse(b.equals(a));
+
+        b.remove(60);
+
+        assertTrue(a.equals(b));
+        assertTrue(b.equals(a));
+
+        a.remove(7);
+
+        assertTrue(a.equals(empty));
+        assertTrue(empty.equals(a));
+
+        assertFalse(a.equals(b));
+        assertFalse(b.equals(a));
+    }
+
 }
 

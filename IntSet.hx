@@ -238,5 +238,26 @@ class IntSet {
         }
         return hash_code;
     }
+
+    public function equals(other:IntSet) : Bool {
+        if ((end_block <= first_block) || (other.end_block <= other.first_block))
+            return (end_block <= first_block) && (other.end_block <= other.first_block);
+
+        if (first_block != other.first_block || end_block != other.end_block)
+            return false;
+
+        var i = first_block - blocks_start;
+        var j = first_block - other.blocks_start;
+        var end = end_block - blocks_start;
+
+        while (i < end) {
+            if (blocks[i] != other.blocks[j])
+                return false;
+            i++;
+            j++;
+        }
+
+        return true;
+    }
 }
 

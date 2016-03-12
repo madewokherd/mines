@@ -46,6 +46,15 @@ private abstract IntArray(js.html.Uint32Array) {
         return debruijn_table[index];
     }
 
+    public static function count_set_bits(x:Int):Int {
+        x = x - ((x >> 1) & 0x55555555);
+        x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+        x = (x + (x >> 4)) & 0x0f0f0f0f;
+        x = (x + (x >> 8)) & 0x00ff00ff;
+        x = (x + (x >> 16)) & 0x0000ffff;
+        return x;
+    }
+
 #else
 
 // Vector-based implementation
@@ -82,6 +91,15 @@ private abstract IntArray(haxe.ds.Vector<Int>) {
         x = x & (-x); // clear all bits except the least set bit
         var index = ((x * debruijn_multiplier) >> 27) & 31;
         return debruijn_table[index];
+    }
+
+    public static function count_set_bits(x:Int):Int {
+        x = x - ((x >> 1) & 0x55555555);
+        x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+        x = (x + (x >> 4)) & 0x0f0f0f0f;
+        x = (x + (x >> 8)) & 0x00ff00ff;
+        x = (x + (x >> 16)) & 0x0000ffff;
+        return x;
     }
 #end
 
@@ -135,6 +153,10 @@ class IntSet {
     var hash_code_cached : Bool;
     var hash_code : Int;
 
+    var _count_cached : Bool;
+    var _count : Int;
+    public var count(get, never):Int;
+
     public function new() {
         blocks = null;
         blocks_start = 0;
@@ -144,6 +166,14 @@ class IntSet {
 
         hash_code_cached = true;
         hash_code = 0;
+
+        _count_cached = true;
+        _count = 0;
+    }
+
+    private inline function modified() {
+        hash_code_cached = false;
+        _count_cached = false;
     }
 
     private static inline function blockof(x:Int) {
@@ -228,7 +258,7 @@ class IntSet {
         var bit_mask = 1 << shiftof(x);
         set_block(block, get_block(block)|bit_mask);
         mark_block_used(block);
-        hash_code_cached = false;
+        modified();
     }
 
     public function remove(x) {
@@ -238,7 +268,7 @@ class IntSet {
             var bit_mask = 1 << shiftof(x);
             set_block(block, get_block(block)&(~bit_mask));
             mark_block_maybe_unused(block);
-            hash_code_cached = false;
+            modified();
         }
     }
 
@@ -274,6 +304,26 @@ class IntSet {
             hash_code_cached = true;
         }
         return hash_code;
+    }
+
+    public function get_count() : Int {
+        if (!_count_cached) {
+            var result : Int;
+            if (end_block <= first_block) {
+                result = 0;
+            }
+            else {
+                result = 0;
+                var block = first_block;
+                while (block < end_block) {
+                    result += IntArray.count_set_bits(get_block(block));
+                    block++;
+                }
+            }
+            _count = result;
+            _count_cached = true;
+        }
+        return _count;
     }
 
     public function equals(other:IntSet) : Bool {

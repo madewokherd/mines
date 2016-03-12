@@ -1,8 +1,10 @@
 
+import haxe.ds.*;
+
 #if js
 private abstract IntArray(js.html.Uint32Array) {
     static inline public var bits_per_item = 32;
-    static inline public var item_shift = 4;
+    static inline public var item_shift = 5;
     
     public inline function new(size:Int) {
         this = new js.html.Uint32Array(size);
@@ -35,24 +37,51 @@ private abstract IntArray(js.html.Uint32Array) {
         return value;
     }
 
+    private static var debruijn_multiplier:Int = 0x4653adf;
+    private static var debruijn_table:Array<Int> = [0, 1, 2, 6, 3, 11, 7, 16, 4, 14, 12, 21, 8, 23, 17, 26, 31, 5, 10, 15, 13, 20, 22, 25, 30, 9, 19, 24, 29, 18, 28, 27];
+
+    public static function least_set_bit(x:Int):Int {
+        x = x & (-x); // clear all bits except the least set bit
+        var index = ((x * debruijn_multiplier) >> 27) & 31;
+        return debruijn_table[index];
+    }
+
 #else
 
 // Vector-based implementation
-#if hxcpp_api_level
-private abstract IntArray(haxe.ds.Vector<cpp.Uint64>) {
+#if 0 // UInt64 in cpp isn't usable :(
+private abstract IntArray(haxe.ds.Vector<cpp.UInt64>) {
     static inline public var bits_per_item = 64;
-    static inline public var item_shift = 5;
+    static inline public var item_shift = 6;
     
     public inline function new(size:Int) {
-        this = new haxe.ds.Vector<cpp.Int64>(size);
+        this = new haxe.ds.Vector<cpp.UInt64>(size);
+    }
+
+    private static var debruijn_multiplier:cpp.UInt64 = 0x218a392cd3d5dbf;
+    private static var debruijn_table:Array<Int> = [0, 1, 2, 7, 3, 13, 8, 19, 4, 25, 14, 28, 9, 34, 20, 40, 5, 17, 26, 38, 15, 46, 29, 48, 10, 31, 35, 54, 21, 50, 41, 57, 63, 6, 12, 18, 24, 27, 33, 39, 16, 37, 45, 47, 30, 53, 49, 56, 62, 11, 23, 32, 36, 44, 52, 55, 61, 22, 43, 51, 60, 42, 59, 58];
+
+    public static function least_set_bit(x:cpp.UInt64):Int {
+        x = x & (-x); // clear all bits except the least set bit
+        var index = ((x * debruijn_multiplier) >> 58) & 63;
+        return debruijn_table[index];
     }
 #else
 private abstract IntArray(haxe.ds.Vector<Int>) {
     static inline public var bits_per_item = 32;
-    static inline public var item_shift = 4;
+    static inline public var item_shift = 5;
     
     public inline function new(size:Int) {
         this = new haxe.ds.Vector<Int>(size);
+    }
+
+    private static var debruijn_multiplier:Int = 0x4653adf;
+    private static var debruijn_table:Array<Int> = [0, 1, 2, 6, 3, 11, 7, 16, 4, 14, 12, 21, 8, 23, 17, 26, 31, 5, 10, 15, 13, 20, 22, 25, 30, 9, 19, 24, 29, 18, 28, 27];
+
+    public static function least_set_bit(x:Int):Int {
+        x = x & (-x); // clear all bits except the least set bit
+        var index = ((x * debruijn_multiplier) >> 27) & 31;
+        return debruijn_table[index];
     }
 #end
 
@@ -211,6 +240,14 @@ class IntSet {
             mark_block_maybe_unused(block);
             hash_code_cached = false;
         }
+    }
+
+    public function first() : Int {
+        if (end_block <= first_block)
+            return -1;
+        var result = first_block << IntArray.item_shift;
+        result += IntArray.least_set_bit(get_block(first_block));
+        return result;
     }
 
     public function contains(x) {

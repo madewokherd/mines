@@ -7,6 +7,7 @@ class IntSetTest extends haxe.unit.TestCase {
         assertFalse(s.contains(100));
         assertFalse(s.contains(50));
         assertEquals(-1, s.first());
+        assertEquals(-1, s.last());
         assertEquals(0, s.count);
         s.remove(100);
         assertFalse(s.contains(-10));
@@ -14,6 +15,7 @@ class IntSetTest extends haxe.unit.TestCase {
         assertFalse(s.contains(100));
         assertFalse(s.contains(50));
         assertEquals(-1, s.first());
+        assertEquals(-1, s.last());
         assertEquals(0, s.count);
         s.add(3);
         assertFalse(s.contains(-10));
@@ -21,6 +23,7 @@ class IntSetTest extends haxe.unit.TestCase {
         assertFalse(s.contains(100));
         assertFalse(s.contains(50));
         assertEquals(3, s.first());
+        assertEquals(3, s.last());
         assertEquals(1, s.count);
         s.add(100);
         assertFalse(s.contains(-10));
@@ -28,6 +31,7 @@ class IntSetTest extends haxe.unit.TestCase {
         assertTrue(s.contains(100));
         assertFalse(s.contains(50));
         assertEquals(3, s.first());
+        assertEquals(100, s.last());
         assertEquals(2, s.count);
         s.add(-10);
         assertTrue(s.contains(-10));
@@ -35,6 +39,7 @@ class IntSetTest extends haxe.unit.TestCase {
         assertTrue(s.contains(100));
         assertFalse(s.contains(50));
         assertEquals(-10, s.first());
+        assertEquals(100, s.last());
         assertEquals(3, s.count);
         s.remove(3);
         assertTrue(s.contains(-10));
@@ -42,6 +47,7 @@ class IntSetTest extends haxe.unit.TestCase {
         assertTrue(s.contains(100));
         assertFalse(s.contains(50));
         assertEquals(-10, s.first());
+        assertEquals(100, s.last());
         assertEquals(2, s.count);
         s.remove(-10);
         assertFalse(s.contains(-10));
@@ -49,6 +55,7 @@ class IntSetTest extends haxe.unit.TestCase {
         assertTrue(s.contains(100));
         assertFalse(s.contains(50));
         assertEquals(100, s.first());
+        assertEquals(100, s.last());
         assertEquals(1, s.count);
         s.remove(100);
         assertFalse(s.contains(-10));
@@ -56,6 +63,7 @@ class IntSetTest extends haxe.unit.TestCase {
         assertFalse(s.contains(100));
         assertFalse(s.contains(50));
         assertEquals(-1, s.first());
+        assertEquals(-1, s.last());
         assertEquals(0, s.count);
     }
 

@@ -46,6 +46,36 @@ private abstract IntArray(js.html.Uint32Array) {
         return debruijn_table[index];
     }
 
+    public static function greatest_set_bit(x:Int):Int {
+        var result = 0;
+        if (x >= (1 << 16))
+        {
+            x = x >> 16;
+            result |= 16;
+        }
+        if (x >= (1 << 8))
+        {
+            x = x >> 8;
+            result |= 8;
+        }
+        if (x >= (1 << 4))
+        {
+            x = x >> 4;
+            result |= 4;
+        }
+        if (x >= (1 << 2))
+        {
+            x = x >> 2;
+            result |= 2;
+        }
+        if (x >= (1 << 1))
+        {
+            x = x >> 1;
+            result |= 1;
+        }
+        return result;
+    }
+
     public static function count_set_bits(x:Int):Int {
         x = x - ((x >> 1) & 0x55555555);
         x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
@@ -91,6 +121,36 @@ private abstract IntArray(haxe.ds.Vector<Int>) {
         x = x & (-x); // clear all bits except the least set bit
         var index = ((x * debruijn_multiplier) >> 27) & 31;
         return debruijn_table[index];
+    }
+
+    public static function greatest_set_bit(x:Int):Int {
+        var result = 0;
+        if (x >= (1 << 16))
+        {
+            x = x >> 16;
+            result |= 16;
+        }
+        if (x >= (1 << 8))
+        {
+            x = x >> 8;
+            result |= 8;
+        }
+        if (x >= (1 << 4))
+        {
+            x = x >> 4;
+            result |= 4;
+        }
+        if (x >= (1 << 2))
+        {
+            x = x >> 2;
+            result |= 2;
+        }
+        if (x >= (1 << 1))
+        {
+            x = x >> 1;
+            result |= 1;
+        }
+        return result;
     }
 
     public static function count_set_bits(x:Int):Int {
@@ -277,6 +337,14 @@ class IntSet {
             return -1;
         var result = first_block << IntArray.item_shift;
         result += IntArray.least_set_bit(get_block(first_block));
+        return result;
+    }
+
+    public function last() : Int {
+        if (end_block <= first_block)
+            return -1;
+        var result = (end_block-1) << IntArray.item_shift;
+        result += IntArray.greatest_set_bit(get_block(end_block-1));
         return result;
     }
 

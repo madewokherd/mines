@@ -263,14 +263,14 @@ class DreamBoard(object):
 
         probabilities, _dummy = solver.get_probabilities()
         
-        items = list(probabilities.iteritems())
+        items = list(probabilities.items())
         random.shuffle(items)
         
         x, y = min(items, key=self._hint_score)[0]
         self.set_value(x, y, CLEAR_Q)
         return True
         
-        total = sum(probabilities.itervalues())
+        total = sum(probabilities.values())
 
         if total == 0:
             return False
@@ -315,10 +315,11 @@ def draw_board(board, switches):
                     g = board.solver.solved_spaces[x, y] * 255
                     border = 1
                 elif (x, y) in probabilities:
-                    g = (probabilities[x, y] * 255 / total)
+                    g = (probabilities[x, y] * 255 // total)
                     border = 2
                 else:
                     continue
+                g = int(g)
                 pygame.draw.rect(screen, Color(g, 255-g, min(g, 255-g), 255), Rect(x * grid_size + border, y * grid_size + border, grid_size - border*2, grid_size - border*2))
 
     if show_last_revealed:
@@ -383,7 +384,7 @@ def run(width, height, count):
         cur_count = count - len(list(x for x in board.values if x == MINE))
         if cur_count != prev_count:
             prev_count = cur_count
-            print cur_count
+            print(cur_count)
 
         draw_board(board, switches)
         
@@ -393,15 +394,15 @@ def run(width, height, count):
             if event.type == QUIT:
                 return
             elif event.type in (MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION):
-                x = event.pos[0] / grid_size
-                y = event.pos[1] / grid_size
+                x = event.pos[0] // grid_size
+                y = event.pos[1] // grid_size
                 if event.type == MOUSEBUTTONDOWN and event.button == 1:
-                    #board.clear_space(x, y)
-                    board.set_value(x, y, CLEAR_Q)
+                    board.clear_space(x, y)
+                    #board.set_value(x, y, CLEAR_Q)
                     show_last_revealed = False
                 elif event.type == MOUSEBUTTONDOWN and event.button == 3:
-                    #board.reveal_mine_space(x, y)
-                    board.set_value(x, y, MINE)
+                    board.reveal_mine_space(x, y)
+                    #board.set_value(x, y, MINE)
                     show_last_revealed = False
             elif event.type == KEYDOWN:
                 if event.unicode in key_values:
@@ -429,6 +430,7 @@ if __name__ == '__main__':
     switches = set()
     argv = []
     for arg in sys.argv[1:]:
+        print(arg)
         if arg.startswith('/'):
             switches.add(arg)
         else:

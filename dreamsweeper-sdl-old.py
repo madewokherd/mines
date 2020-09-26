@@ -357,6 +357,8 @@ def run(width, height, count):
     while True:
         if '/d' in switches:
             __import__('time').sleep(0.2)
+        elif '/dd' in switches:
+            __import__('time').sleep(0.4)
 
         draw_board(board, switches)
 

@@ -20,6 +20,7 @@
 
 import random
 import sys
+import time
 
 random = random.SystemRandom()
 
@@ -397,9 +398,9 @@ def run(width, height, count):
             draw_board(board, switches)
 
         if '/d' in switches:
-            __import__('time').sleep(0.2)
+            time.sleep(0.2)
         elif '/dd' in switches:
-            __import__('time').sleep(0.4)
+            time.sleep(0.4)
 
         draw_board(board, switches)
 
@@ -431,6 +432,20 @@ def run(width, height, count):
 
         draw_board(board, switches)
         
+        if '/ac' in switches and cur_count == 0:
+            for i in range(2):
+                events = pygame.event.get()
+                time.sleep(0.1)
+                if events:
+                    break
+            else:
+                board.clear()
+                continue
+            for event in events:
+                do_event(board, event)
+                draw_board(board, switches)
+            continue
+
         events = [pygame.event.wait()]
         while events:
             event = events.pop(0)

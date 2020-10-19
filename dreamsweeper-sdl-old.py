@@ -344,6 +344,39 @@ key_values = {
     u'?': UNKNOWN_Q,
     }
 
+def do_event(board, event):
+    if event.type == QUIT:
+        sys.exit(0)
+    elif event.type in (MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION):
+        x = event.pos[0] // grid_size
+        y = event.pos[1] // grid_size
+        if event.type == MOUSEBUTTONDOWN and event.button == 1:
+            board.clear_space(x, y)
+            #board.set_value(x, y, CLEAR_Q)
+            show_last_revealed = False
+        elif event.type == MOUSEBUTTONDOWN and event.button == 3:
+            board.reveal_mine_space(x, y)
+            #board.set_value(x, y, MINE)
+            show_last_revealed = False
+    elif event.type == KEYDOWN:
+        if event.unicode in key_values:
+            board.set_value(x, y, key_values[event.unicode])
+            show_last_revealed = False
+        elif event.unicode == u'h':
+            board.hint()
+            show_last_revealed = False
+        elif event.unicode == u'r':
+            board.reveal_space(x, y, discard=True)
+            show_last_revealed = False
+        elif event.unicode == u's':
+            board.mark_known_spaces()
+            show_last_revealed = False
+        elif event.unicode == u'p':
+            switches.symmetric_difference_update(set(['/p']))
+        elif event.key == pygame.K_BACKSPACE:
+            board.clear()
+            show_last_revealed = False
+
 def run(width, height, count):
     global show_last_revealed
     board = DreamBoard(width, height, count)
@@ -355,6 +388,14 @@ def run(width, height, count):
     prev_count = count
 
     while True:
+        events = pygame.event.get()
+        while events:
+            event = events.pop(0)
+            do_event(board, event)
+            if not events:
+                events = pygame.event.get()
+            draw_board(board, switches)
+
         if '/d' in switches:
             __import__('time').sleep(0.2)
         elif '/dd' in switches:
@@ -393,37 +434,7 @@ def run(width, height, count):
         events = [pygame.event.wait()]
         while events:
             event = events.pop(0)
-            if event.type == QUIT:
-                return
-            elif event.type in (MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION):
-                x = event.pos[0] // grid_size
-                y = event.pos[1] // grid_size
-                if event.type == MOUSEBUTTONDOWN and event.button == 1:
-                    board.clear_space(x, y)
-                    #board.set_value(x, y, CLEAR_Q)
-                    show_last_revealed = False
-                elif event.type == MOUSEBUTTONDOWN and event.button == 3:
-                    board.reveal_mine_space(x, y)
-                    #board.set_value(x, y, MINE)
-                    show_last_revealed = False
-            elif event.type == KEYDOWN:
-                if event.unicode in key_values:
-                    board.set_value(x, y, key_values[event.unicode])
-                    show_last_revealed = False
-                elif event.unicode == u'h':
-                    board.hint()
-                    show_last_revealed = False
-                elif event.unicode == u'r':
-                    board.reveal_space(x, y, discard=True)
-                    show_last_revealed = False
-                elif event.unicode == u's':
-                    board.mark_known_spaces()
-                    show_last_revealed = False
-                elif event.unicode == u'p':
-                    switches.symmetric_difference_update(set(['/p']))
-                elif event.key == pygame.K_BACKSPACE:
-                    board.clear()
-                    show_last_revealed = False
+            do_event(board, event)
             if not events:
                 events = pygame.event.get()
             draw_board(board, switches)

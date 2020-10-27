@@ -346,7 +346,7 @@ key_values = {
     u'?': UNKNOWN_Q,
     }
 
-def do_event(board, event):
+def do_event(board, event, x, y):
     if event.type == QUIT:
         sys.exit(0)
     elif event.type in (MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION):
@@ -378,6 +378,7 @@ def do_event(board, event):
         elif event.key == pygame.K_BACKSPACE:
             board.clear()
             show_last_revealed = False
+    return x, y
 
 def run(width, height, count):
     global show_last_revealed
@@ -393,7 +394,7 @@ def run(width, height, count):
         events = pygame.event.get()
         while events:
             event = events.pop(0)
-            do_event(board, event)
+            x, y = do_event(board, event, x, y)
             if not events:
                 events = pygame.event.get()
             draw_board(board, switches)
@@ -443,14 +444,14 @@ def run(width, height, count):
                 board.clear()
                 continue
             for event in events:
-                do_event(board, event)
+                x, y = do_event(board, event, x, y)
                 draw_board(board, switches)
             continue
 
         events = [pygame.event.wait()]
         while events:
             event = events.pop(0)
-            do_event(board, event)
+            x, y = do_event(board, event, x, y)
             if not events:
                 events = pygame.event.get()
             draw_board(board, switches)

@@ -139,6 +139,7 @@ class DreamBoard(object):
             return False
         self.solver = solver
         self.values[x + y * self.width] = value
+        self._recheck_possibility(x, y, value)
         return True
 
     def get_mine_probabilities(self):

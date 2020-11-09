@@ -64,9 +64,16 @@ class Network:
 
         while True:
             line = self.readline()
-            print(line)
             if line[1] == '004': # RPL_MYINFO
                 # successfully connected
+                break
+
+        self.send(f'JOIN :{channel}')
+
+        while True:
+            line = self.readline()
+            if line[1] == 'JOIN' and line[2] == channel:
+                # successfully joined channel
                 break
 
     def readline(self):
@@ -77,7 +84,9 @@ class Network:
             self.buf.extend(data)
 
         result, self.buf = self.buf.split(b'\r\n', 1)
-        return parse_irc(result.decode('utf8', 'surrogateescape'), self.server)
+        result = parse_irc(result.decode('utf8', 'surrogateescape'), self.server)
+        print(result)
+        return result
 
     def send(self, line):
         self.socket.send(f'{line}\r\n'.encode('utf8', 'surrogateescape'))

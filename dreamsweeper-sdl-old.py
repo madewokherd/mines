@@ -204,7 +204,7 @@ class DreamBoard(object):
         for x in range(self.width):
             for y in range(self.height):
                 if self.get_value(x, y) == CLEAR_Q:
-                    self.reveal_space(x, y, discard=True)
+                    self.reveal_space(x, y, discard=False)
                     result = True
         
         return result

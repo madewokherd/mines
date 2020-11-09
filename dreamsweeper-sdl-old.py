@@ -27,6 +27,7 @@ random = random.SystemRandom()
 import pygame
 from pygame.locals import *
 
+import irc
 import mines
 
 mines_image = pygame.image.load('mines.bmp')
@@ -389,6 +390,13 @@ def run(width, height, count):
     x = y = 0
 
     prev_count = count
+
+    for i in switches:
+        if i.startswith('/i'):
+            channel = i[2:]
+            network = irc.Network()
+    else:
+        network = None
 
     while True:
         events = pygame.event.get()

@@ -395,6 +395,7 @@ def run(width, height, count):
         if i.startswith('/i'):
             channel = i[2:]
             network = irc.Network()
+            break
     else:
         network = None
 
@@ -406,6 +407,11 @@ def run(width, height, count):
             if not events:
                 events = pygame.event.get()
             draw_board(board, switches)
+
+        if network is not None:
+            msg = network.poll()
+            while msg:
+                msg = network.poll()
 
         if '/d' in switches:
             time.sleep(0.2)
@@ -456,13 +462,7 @@ def run(width, height, count):
                 draw_board(board, switches)
             continue
 
-        events = [pygame.event.wait()]
-        while events:
-            event = events.pop(0)
-            x, y = do_event(board, event, x, y)
-            if not events:
-                events = pygame.event.get()
-            draw_board(board, switches)
+        time.sleep(0.1)
 
 if __name__ == '__main__':
     switches = set()

@@ -2,6 +2,7 @@
 # CONFUSINGLY GPL LICENSE
 
 import random
+import select
 import socket
 
 random.seed()
@@ -68,11 +69,11 @@ class Network:
                 # successfully connected
                 break
 
-        self.send(f'JOIN :{channel}')
+        self.send('JOIN :#%s' % channel.lower())
 
         while True:
             line = self.readline()
-            if line[1] == 'JOIN' and line[2] == channel:
+            if line[1] == 'JOIN':
                 # successfully joined channel
                 break
 
@@ -86,8 +87,25 @@ class Network:
         result, self.buf = self.buf.split(b'\r\n', 1)
         result = parse_irc(result.decode('utf8', 'surrogateescape'), self.server)
         print(result)
+
+        if result[1] == 'PING':
+            self.send('PONG :%s' % (result[2] if len(result) > 2 else 'x'))
+
         return result
 
     def send(self, line):
         self.socket.send(f'{line}\r\n'.encode('utf8', 'surrogateescape'))
+
+    def can_read(self):
+        r, w, x = select.select((self.socket,), (), (), 0)
+        return bool(r)
+
+    def poll(self):
+        # returns message array or None
+        while b'\r\n' not in self.buf and self.can_read():
+            data = self.socket.recv(8192)
+            self.buf.extend(data)
+
+        if b'\r\n' in self.buf:
+            return self.readline()
 

@@ -200,6 +200,14 @@ class DreamBoard(object):
     def set_value(self, x, y, value):
         self.try_set_value(x, y, value)
 
+    last_known_marked = (0, 0)
+
+    def distance_from_last(self, pos):
+        x, y = pos
+        lastx, lasty = self.last_known_marked
+        dx, dy = abs(lastx - x), abs(lasty - y)
+        return max(dx, dy), min(dx, dy)
+
     def mark_known_spaces(self, value = None):
         result = False
         solver = self.get_solver()
@@ -207,11 +215,12 @@ class DreamBoard(object):
         
         solved_spaces = solver.solved_spaces.copy()
         
-        for x, y in solved_spaces:
+        for x, y in sorted(solved_spaces, key=self.distance_from_last):
             if self.get_value(x, y) == UNKNOWN:
                 if value is not None and solved_spaces[x, y] != value:
                     continue
                 self._set_value(x, y, MINE if solved_spaces[x, y] else CLEAR_Q)
+                self.last_known_marked = (x, y)
                 return True
         return result
 

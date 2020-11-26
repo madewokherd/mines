@@ -451,6 +451,18 @@ def process_command(board, command):
                 if tokens[1].lower() == 'off' and '/p' not in switches:
                     return
             switches.symmetric_difference_update(set(['/p']))
+        elif tokens[0] == '!reveal':
+            if len(tokens) >= 2:
+                if tokens[1].lower() == 'on' and '/r' in switches:
+                    return
+                if tokens[1].lower() == 'off' and '/r' not in switches:
+                    return
+                location = parse_location(board, tokens[1])
+                if location is not None:
+                    x, y = location
+                    board.reveal_space(x, y)
+                    return
+            switches.symmetric_difference_update(set(['/r']))
 
 def run(width, height, count):
     global show_last_revealed

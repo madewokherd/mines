@@ -455,12 +455,12 @@ def process_command(board, command):
                 location = parse_location(board, tokens[1])
                 if location is not None:
                     board.set_value(location[0], location[1], key_values[tokens[0][1:].lower()])
-        elif tokens[0] == '!clear':
+        elif tokens[0] in ('!erase', '!e'):
             if len(tokens) >= 2:
                 location = parse_location(board, tokens[1])
                 if location is not None:
                     board.mass_clear(location[0], location[1], 5, 5)
-        elif tokens[0] == '!set':
+        elif tokens[0] in ('!set', '!s'):
             if len(tokens) >= 3 and tokens[1].lower() in key_values:
                 location = parse_location(board, tokens[2])
                 if location is not None:
@@ -472,7 +472,7 @@ def process_command(board, command):
                 if tokens[1].lower() == 'off' and '/p' not in switches:
                     return
             switches.symmetric_difference_update(set(['/p']))
-        elif tokens[0] == '!reveal':
+        elif tokens[0] in ('!reveal', '!r'):
             if len(tokens) >= 2:
                 if tokens[1].lower() == 'on' and '/r' in switches:
                     return
@@ -484,7 +484,7 @@ def process_command(board, command):
                     board.reveal_space(x, y)
                     return
             switches.symmetric_difference_update(set(['/r']))
-        elif tokens[0] == '!palette':
+        elif tokens[0] in ('!palette', '!p'):
             global palette
             r = __import__('random').Random()
             if len(tokens) >= 2 and tokens[1] != 'random':

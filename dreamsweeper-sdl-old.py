@@ -444,6 +444,13 @@ def process_command(board, command):
                 location = parse_location(board, tokens[2])
                 if location is not None:
                     board.set_value(location[0], location[1], key_values[tokens[1].lower()])
+        elif tokens[0] == '!probability':
+            if len(tokens) >= 2:
+                if tokens[1].lower() == 'on' and '/p' in switches:
+                    return
+                if tokens[1].lower() == 'off' and '/p' not in switches:
+                    return
+            switches.symmetric_difference_update(set(['/p']))
 
 def run(width, height, count):
     global show_last_revealed

@@ -335,6 +335,7 @@ class DreamBoard(object):
         return False
 
 palette = default_palette = (255, 0, 255, 0, 0, 255, 255, 0, 128, 213, 213, 128)
+grayscale_palette = (0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255)
 
 def draw_board(board, switches):
     screen = pygame.display.get_surface()
@@ -490,9 +491,15 @@ def process_command(board, command):
             if len(tokens) >= 2 and tokens[1] != 'random':
                 if tokens[1] == 'default':
                     palette = default_palette
+                    switches.add('/p')
+                    return
+                elif tokens[1] in ('gray', 'grayscale', 'grey', 'greyscale'):
+                    palette = grayscale_palette
+                    switches.add('/p')
                     return
                 elif tokens[1] == 'hue':
                     palette = 'HUE'
+                    switches.add('/p')
                     return
                 r.seed(tokens[1])
             else:

@@ -138,9 +138,13 @@ class DreamBoard(object):
             solver = self.get_solver_where(x, y, value)
         except mines.UnsolveableException:
             return False
+        removing_information = self._is_removing_information(x, y, value)
         self.solver = solver
         self.values[x + y * self.width] = value
-        self._recheck_possibility(x, y, value)
+        if removing_information:
+            self.possibility = None
+        else:
+            self._recheck_possibility(x, y, value)
         return True
 
     def get_centered_range(self, x, y, width, height):

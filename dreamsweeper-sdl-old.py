@@ -353,7 +353,7 @@ def draw_board(board, switches):
                 else:
                     continue
                 g = int(g)
-                pygame.draw.rect(screen, Color(g, 255-g, min(g, 255-g), 255), Rect(x * grid_size + border, y * grid_size + border, grid_size - border*2, grid_size - border*2))
+                pygame.draw.rect(screen, Color(255 - g, min(g, 255-g), min(g, 255-g) // 3 + 128, 255), Rect(x * grid_size + border, y * grid_size + border, grid_size - border*2, grid_size - border*2))
 
     if show_last_revealed:
         x, y = last_revealed

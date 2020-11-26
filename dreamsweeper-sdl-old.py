@@ -143,6 +143,27 @@ class DreamBoard(object):
         self._recheck_possibility(x, y, value)
         return True
 
+    def get_centered_range(self, x, y, width, height):
+        xmin = x - width // 2
+        ymin = y - height // 2
+        xmax = xmin + width
+        ymax = ymin + height
+        if xmin < 0:
+            xmin = 0
+        if ymin < 0:
+            ymin = 0
+        if xmax > self.width:
+            xmax = self.width
+        if ymax > self.height:
+            ymax = self.height
+        return xmin, ymin, xmax, ymax
+
+    def mass_clear(self, x, y, width, height):
+        xmin, ymin, xmax, ymax = self.get_centered_range(x, y, width, height)
+        for x in range(xmin, xmax):
+            for y in range(ymin, ymax):
+                self.set_value(x, y, UNKNOWN)
+
     def get_mine_probabilities(self):
         solver = self.get_solver()
         solver.solve()
@@ -400,6 +421,11 @@ def process_command(board, command):
                 location = parse_location(board, tokens[1])
                 if location is not None:
                     board.reveal_mine_space(location[0], location[1])
+        elif tokens[0] == '!clear':
+            if len(tokens) >= 2:
+                location = parse_location(board, tokens[1])
+                if location is not None:
+                    board.mass_clear(location[0], location[1], 5, 5)
 
 def run(width, height, count):
     global show_last_revealed

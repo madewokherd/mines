@@ -450,11 +450,11 @@ def parse_location(board, location):
 def process_command(board, command):
     tokens = command.split()
     if len(tokens) >= 1:
-        if tokens[0] == '!mine':
+        if tokens[0].startswith('!') and tokens[0][1:].lower() in key_values:
             if len(tokens) >= 2:
                 location = parse_location(board, tokens[1])
                 if location is not None:
-                    board.reveal_mine_space(location[0], location[1])
+                    board.set_value(location[0], location[1], key_values[tokens[0][1:].lower()])
         elif tokens[0] == '!clear':
             if len(tokens) >= 2:
                 location = parse_location(board, tokens[1])

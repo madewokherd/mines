@@ -342,8 +342,12 @@ key_values = {
     u'7': 7,
     u'8': 8,
     u'm': MINE,
+    u'M': MINE,
     u' ': UNKNOWN,
+    u'_': UNKNOWN,
+    u'-': UNKNOWN,
     u'c': CLEAR_Q,
+    u'C': CLEAR_Q,
     u'?': UNKNOWN_Q,
     }
 
@@ -381,6 +385,22 @@ def do_event(board, event, x, y):
             show_last_revealed = False
     return x, y
 
+def parse_location(board, location):
+    if len(location) >= 2 and location[0].isalpha() and location[1:].isdigit():
+        y = ord(location[0].upper()) - ord('A')
+        x = int(location[1:])
+        if 0 <= x < board.width and 0 <= y < board.height:
+            return x, y
+
+def process_command(board, command):
+    tokens = command.split()
+    if len(tokens) >= 1:
+        if tokens[0] == '!mine':
+            if len(tokens) >= 2:
+                location = parse_location(board, tokens[1])
+                if location is not None:
+                    board.reveal_mine_space(location[0], location[1])
+
 def run(width, height, count):
     global show_last_revealed
     board = DreamBoard(width, height, count)
@@ -411,6 +431,10 @@ def run(width, height, count):
         if network is not None:
             msg = network.poll()
             while msg:
+                if msg[1] == 'PRIVMSG' and msg[2] == '#'+channel:
+                    print(msg[3])
+                    process_command(board, msg[3])
+                    draw_board(board, switches)
                 msg = network.poll()
 
         if '/d' in switches:

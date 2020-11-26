@@ -86,7 +86,7 @@ class Network:
 
         result, self.buf = self.buf.split(b'\r\n', 1)
         result = parse_irc(result.decode('utf8', 'surrogateescape'), self.server)
-        print(result)
+        # print(result)
 
         if result[1] == 'PING':
             self.send('PONG :%s' % (result[2] if len(result) > 2 else 'x'))

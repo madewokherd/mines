@@ -330,6 +330,8 @@ class DreamBoard(object):
             return self.hint()
         return False
 
+palette = default_palette = (255, 0, 255, 0, 0, 255, 255, 0, 128, 213, 213, 128)
+
 def draw_board(board, switches):
     screen = pygame.display.get_surface()
 
@@ -345,15 +347,22 @@ def draw_board(board, switches):
 
             if value == UNKNOWN and '/p' in switches:
                 if (x, y) in board.solver.solved_spaces:
-                    g = board.solver.solved_spaces[x, y] * 255
+                    g = board.solver.solved_spaces[x, y]
                     border = 1
                 elif (x, y) in probabilities:
-                    g = (probabilities[x, y] * 255 // total)
+                    g = (probabilities[x, y] / total)
                     border = 2
                 else:
                     continue
-                g = int(g)
-                pygame.draw.rect(screen, Color(255 - g, min(g, 255-g), min(g, 255-g) // 3 + 128, 255), Rect(x * grid_size + border, y * grid_size + border, grid_size - border*2, grid_size - border*2))
+
+                components = []
+                for i in range(3):
+                    base = i * 4
+                    c1 = palette[base] * (1 - g) + palette[base+1] * g
+                    c2 = palette[base+2] * (1 - g) + palette[base+3] * g
+                    components.append(int(min(c1, c2)))
+
+                pygame.draw.rect(screen, Color(components[0], components[1], components[2], 255), Rect(x * grid_size + border, y * grid_size + border, grid_size - border*2, grid_size - border*2))
 
     if show_last_revealed:
         x, y = last_revealed
@@ -463,6 +472,18 @@ def process_command(board, command):
                     board.reveal_space(x, y)
                     return
             switches.symmetric_difference_update(set(['/r']))
+        elif tokens[0] == '!palette':
+            global palette
+            r = __import__('random').Random()
+            if len(tokens) >= 2 and tokens[1] != 'random':
+                if tokens[1] == 'default':
+                    palette = default_palette
+                    return
+                r.seed(tokens[1])
+            else:
+                r.seed()
+            palette = tuple(max(r.random()*255, r.random()*255) for x in range(12))
+            switches.add('/p')
 
 def run(width, height, count):
     global show_last_revealed

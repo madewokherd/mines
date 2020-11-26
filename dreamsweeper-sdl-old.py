@@ -373,12 +373,16 @@ key_values = {
     u'8': 8,
     u'm': MINE,
     u'M': MINE,
+    u'mine': MINE,
     u' ': UNKNOWN,
     u'_': UNKNOWN,
     u'-': UNKNOWN,
+    u'unknown': UNKNOWN,
     u'c': CLEAR_Q,
     u'C': CLEAR_Q,
+    u'clear': CLEAR_Q,
     u'?': UNKNOWN_Q,
+    u'question': UNKNOWN_Q,
     }
 
 def do_event(board, event, x, y):
@@ -435,6 +439,11 @@ def process_command(board, command):
                 location = parse_location(board, tokens[1])
                 if location is not None:
                     board.mass_clear(location[0], location[1], 5, 5)
+        elif tokens[0] == '!set':
+            if len(tokens) >= 3 and tokens[1].lower() in key_values:
+                location = parse_location(board, tokens[2])
+                if location is not None:
+                    board.set_value(location[0], location[1], key_values[tokens[1].lower()])
 
 def run(width, height, count):
     global show_last_revealed

@@ -355,12 +355,20 @@ def draw_board(board, switches):
                 else:
                     continue
 
-                components = []
-                for i in range(3):
-                    base = i * 4
-                    c1 = palette[base] * (1 - g) + palette[base+1] * g
-                    c2 = palette[base+2] * (1 - g) + palette[base+3] * g
-                    components.append(int(min(c1, c2)))
+                if palette == 'HUE':
+                    if g >= 0.5:
+                        g = (g - 0.5) * 2
+                        components = (int(255 * g), int(255 * (1-g)), 0)
+                    else:
+                        g = g * 2
+                        components = (0, int(255 * g), int(255 * (1-g)))
+                else:
+                    components = []
+                    for i in range(3):
+                        base = i * 4
+                        c1 = palette[base] * (1 - g) + palette[base+1] * g
+                        c2 = palette[base+2] * (1 - g) + palette[base+3] * g
+                        components.append(int(min(c1, c2)))
 
                 pygame.draw.rect(screen, Color(components[0], components[1], components[2], 255), Rect(x * grid_size + border, y * grid_size + border, grid_size - border*2, grid_size - border*2))
 
@@ -478,6 +486,9 @@ def process_command(board, command):
             if len(tokens) >= 2 and tokens[1] != 'random':
                 if tokens[1] == 'default':
                     palette = default_palette
+                    return
+                elif tokens[1] == 'hue':
+                    palette = 'HUE'
                     return
                 r.seed(tokens[1])
             else:

@@ -334,8 +334,10 @@ class DreamBoard(object):
             return self.hint()
         return False
 
-palette = default_palette = (255, 0, 255, 0, 0, 255, 255, 0, 128, 213, 213, 128)
-grayscale_palette = (0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255)
+palette = default_palette = (255, 128, 0, 0, 128, 0, 128, 170, 128)
+hue_palette = (0, 0, 255, 0, 255, 0, 255, 0, 0)
+grayscale_palette = (0, 128, 255, 0, 128, 255, 0, 128, 255)
+pastel_palette = (255,255,0,255,0,255,0,255,255)
 
 def draw_board(board, switches):
     screen = pygame.display.get_surface()
@@ -360,20 +362,16 @@ def draw_board(board, switches):
                 else:
                     continue
 
-                if palette == 'HUE':
-                    if g >= 0.5:
-                        g = (g - 0.5) * 2
-                        components = (int(255 * g), int(255 * (1-g)), 0)
-                    else:
-                        g = g * 2
-                        components = (0, int(255 * g), int(255 * (1-g)))
+                if g >= 0.5:
+                    g = (g - 0.5) * 2
+                    components = (int(palette[2]*g + palette[1]*(1-g)),
+                                  int(palette[5]*g + palette[4]*(1-g)),
+                                  int(palette[8]*g + palette[7]*(1-g)))
                 else:
-                    components = []
-                    for i in range(3):
-                        base = i * 4
-                        c1 = palette[base] * (1 - g) + palette[base+1] * g
-                        c2 = palette[base+2] * (1 - g) + palette[base+3] * g
-                        components.append(int(min(c1, c2)))
+                    g = g * 2
+                    components = (int(palette[1]*g + palette[0]*(1-g)),
+                                  int(palette[4]*g + palette[3]*(1-g)),
+                                  int(palette[7]*g + palette[6]*(1-g)))
 
                 pygame.draw.rect(screen, Color(components[0], components[1], components[2], 255), Rect(x * grid_size + border, y * grid_size + border, grid_size - border*2, grid_size - border*2))
 
@@ -498,13 +496,21 @@ def process_command(board, command):
                     switches.add('/p')
                     return
                 elif tokens[1] == 'hue':
-                    palette = 'HUE'
+                    palette = hue_palette
+                    switches.add('/p')
+                    return
+                elif tokens[1] == 'pastel':
+                    palette = pastel_palette
+                    switches.add('/p')
+                    return
+                elif len(tokens) >= 10 and all(x.isdigit() and 0 <= int(x) <= 255 for x in tokens[1:]):
+                    palette = tuple(int(x) for x in tokens[1:])
                     switches.add('/p')
                     return
                 r.seed(tokens[1])
             else:
                 r.seed()
-            palette = tuple(max(r.random()*255, r.random()*255) for x in range(12))
+            palette = tuple(r.randint(0, 255) for x in range(9))
             switches.add('/p')
 
 def run(width, height, count):

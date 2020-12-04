@@ -526,7 +526,7 @@ def run(width, height, count):
     for i in switches:
         if i.startswith('/i'):
             channel = i[2:]
-            network = irc.Network()
+            network = irc.Network(channel=channel)
             break
     else:
         network = None
